@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- MOBILE FIX: Viewport meta tag to prevent forced zooming on touch devices -->
+    <!-- MOBILE FIX 1: Viewport meta tag to prevent forced zooming on touch devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FOTW Cosmic Network</title>
     <style>
@@ -62,7 +62,7 @@
         #tooltip span { display: block; font-size: 11px; color: #aaa; margin-top: 4px; }
         #tooltip em { display: block; font-size: 10px; color: #00ffcc; margin-top: 6px; font-style: normal; }
 
-        /* Responsive Sidebar styling */
+        /* MOBILE FIX 2: Responsive Sidebar */
         @media (max-width: 768px) {
             #sidebar {
                 top: 10px; left: 10px; width: calc(100vw - 20px); 
@@ -122,23 +122,8 @@
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
                          (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 
-        // HYBRID FILE PATH FINDER:
-        // Automatically targets your local relative structure when debugging at home (localhost).
-        // Automatically redirects to the official cloud mirror on Vercel so you don't need to upload gigabytes of data.
-        const isLocalhost = window.location.hostname === 'localhost' || 
-                             window.location.hostname === '127.0.0.1' || 
-                             window.location.hostname.startsWith('192.168.');
-        let fotwBase;
-        if (isLocalhost) {
-            const baseOrigin = window.location.origin;
-            let basePath = window.location.pathname;
-            if (!basePath.endsWith('/')) {
-                basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
-            }
-            fotwBase = baseOrigin + basePath + 'fotw/';
-        } else {
-            fotwBase = 'https://www.crwflags.com/fotw/';
-        }
+        // USE THE ACTUAL FOTW SITE: Point all dynamic requests to the live online CRW Flags mirror
+        const fotwBase = 'https://www.crwflags.com/fotw/';
 
         const COORDINATE_SCALE = 150.0; 
         const BASE_ALPHA = 0.5; 
@@ -598,7 +583,7 @@
                     const fileLower = nodeFiles[i].toLowerCase();
                     
                     let allTermsFound = true;
-                    for (let term of term of searchTerms) {
+                    for (let term of searchTerms) {
                         if (!(nameLower.includes(term) || fileLower.includes(term))) {
                             allTermsFound = false;
                             break;
@@ -665,11 +650,7 @@
             mouseNeedsUpdate = true; // Flag coordinate change
             if (isDragging) {
                 const dx = e.clientX - previousMousePosition.x, dy = e.clientY - previousMousePosition.y;
-                
-                // Forgiving desktop drag detection
-                const dragThreshold = isMobile ? 15 : 5;
-                if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) mouseMovedDuringClick = true;
-                
+                if (Math.abs(dx)>3 || Math.abs(dy)>3) mouseMovedDuringClick = true;
                 const f = camera.position.z * 0.0012; targetX -= dx * f; targetY += dy * f;
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             }
@@ -721,9 +702,7 @@
                 const dx = currentX - previousMousePosition.x;
                 const dy = currentY - previousMousePosition.y;
                 
-                // Forgiving drag threshold logic: ignores micro-vibrations under 15 pixels on touchscreens
-                const dragThreshold = isMobile ? 15 : 5;
-                if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) mouseMovedDuringClick = true;
+                if (Math.abs(dx)>3 || Math.abs(dy)>3) mouseMovedDuringClick = true;
                 
                 const f = camera.position.z * 0.0012; 
                 targetX -= dx * f; targetY += dy * f;
@@ -755,7 +734,6 @@
             if (inters.length > 0) {
                 const clickedIdx = inters[0].index;
                 
-                // Double tap node (click while already selected) opens encyclopedia page
                 if (isolatedNodeIdx === clickedIdx) {
                     window.open(fotwBase + 'flags/' + nodeFiles[clickedIdx].toLowerCase(), '_blank');
                 } else {
@@ -800,6 +778,7 @@
         function animate() {
             requestAnimationFrame(animate);
             
+            // Calculate if the camera is actively sliding/panning
             const cameraMoving = Math.abs(targetX - camera.position.x) > 5 || 
                                  Math.abs(targetY - camera.position.y) > 5 || 
                                  Math.abs(targetZ - camera.position.z) > 10;
@@ -812,8 +791,9 @@
 
             raycastFrameThrottle++;
 
+            // Only run raycasting when something moves, and run it far less frequently on mobile devices
             const shouldRaycast = mouseNeedsUpdate || cameraMoving;
-            const throttleInterval = isMobile ? 8 : 2; 
+            const throttleInterval = isMobile ? 8 : 2; // Raycast every 8 frames on mobile, 2 frames on desktop
 
             if (pointsObject && !isDragging && shouldRaycast && (raycastFrameThrottle % throttleInterval === 0)) {
                 raycaster.setFromCamera(mouse, camera);
@@ -846,14 +826,16 @@
                     tooltip.style.display = 'none';
                     currentHoveredIdx = -1; 
                 }
-                mouseNeedsUpdate = false; 
+                mouseNeedsUpdate = false; // Reset the movement trigger
             } else if (!shouldRaycast && !isDragging) {
+                // Smooth tooltip tracking when camera drifts to a stop
                 if (currentHoveredIdx !== -1) {
                     tooltip.style.left = (mouseClientX + 15) + 'px'; 
                     tooltip.style.top = (mouseClientY + 15) + 'px';
                 }
             }
 
+            // PERFORMANCE FIX 4: Render directly on mobile instead of going through the postprocessing composer
             if (isMobile) {
                 renderer.render(scene, camera);
             } else {

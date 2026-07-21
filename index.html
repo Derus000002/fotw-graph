@@ -118,8 +118,17 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
     <script>
+        // Check for touch screens / mobile users to apply performance hacks
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
+                         (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+
         // VERCEL FIX: Dynamically generate absolute paths regardless of hosting environment.
-        const fotwBase = 'https://www.crwflags.com/fotw/';
+        const baseOrigin = window.location.origin;
+        let basePath = window.location.pathname;
+        if (!basePath.endsWith('/')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+        }
+        const fotwBase = baseOrigin + basePath + 'fotw/';
 
         const COORDINATE_SCALE = 150.0; 
         const BASE_ALPHA = 0.5; 
@@ -128,20 +137,26 @@
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000000);
         camera.position.set(0, 0, 800000); 
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        // PERFORMANCE FIX 1: Turn off heavy antialiasing on mobile
+        const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // PERFORMANCE FIX 2: Limit device pixel ratio on mobile to save GPU fill rate
+        renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.2) : Math.min(window.devicePixelRatio, 2.0));
         document.body.appendChild(renderer.domElement);
 
         const renderScene = new THREE.RenderPass(scene, camera);
-        const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.2;
-        bloomPass.strength = 0.35;
-        bloomPass.radius = 0.2;
-
         const composer = new THREE.EffectComposer(renderer);
         composer.addPass(renderScene);
-        composer.addPass(bloomPass);
+
+        // PERFORMANCE FIX 3: Completely skip post-processing / Bloom on mobile
+        if (!isMobile) {
+            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = 0.2;
+            bloomPass.strength = 0.35;
+            bloomPass.radius = 0.2;
+            composer.addPass(bloomPass);
+        }
 
         let targetX = 0, targetY = 0, targetZ = 800000; 
         let isDragging = false;
@@ -152,6 +167,7 @@
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let mouseClientX = 0, mouseClientY = 0;
+        let mouseNeedsUpdate = false; // Only raycast when coordinates change or camera moves
         
         let numNodes = 0;
         let positions, colors, originalSizes;
@@ -636,6 +652,7 @@
         window.addEventListener('mousemove', e => {
             mouseClientX = e.clientX; mouseClientY = e.clientY;
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            mouseNeedsUpdate = true; // Flag coordinate change
             if (isDragging) {
                 const dx = e.clientX - previousMousePosition.x, dy = e.clientY - previousMousePosition.y;
                 if (Math.abs(dx)>3 || Math.abs(dy)>3) mouseMovedDuringClick = true;
@@ -655,20 +672,18 @@
             if (e.target.closest('#sidebar')) return;
             
             if (e.touches.length === 2) {
-                // Initiating a pinch-zoom gesture
                 initialPinchDistance = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
                     e.touches[0].clientY - e.touches[1].clientY
                 );
             } else if (e.touches.length === 1 && !e.target.closest('#tooltip')) {
-                // Initiating a drag to pan
                 isDragging = true; mouseMovedDuringClick = false; 
                 previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
                 
-                // Track finger for raycaster immediately
                 mouseClientX = e.touches[0].clientX; mouseClientY = e.touches[0].clientY;
                 mouse.x = (mouseClientX / window.innerWidth) * 2 - 1; 
                 mouse.y = -(mouseClientY / window.innerHeight) * 2 + 1;
+                mouseNeedsUpdate = true;
             }
         }, {passive: false});
 
@@ -676,7 +691,7 @@
             if (e.target.closest('#sidebar')) return;
             
             if (e.touches.length === 2) {
-                e.preventDefault(); // Prevent native browser pinch zoom
+                e.preventDefault(); 
                 const currentPinchDistance = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
                     e.touches[0].clientY - e.touches[1].clientY
@@ -698,10 +713,10 @@
                 targetX -= dx * f; targetY += dy * f;
                 previousMousePosition = { x: currentX, y: currentY };
                 
-                // Track finger for raycaster
                 mouseClientX = currentX; mouseClientY = currentY;
                 mouse.x = (currentX / window.innerWidth) * 2 - 1; 
                 mouse.y = -(currentY / window.innerHeight) * 2 + 1;
+                mouseNeedsUpdate = true;
             }
         }, {passive: false});
 
@@ -724,7 +739,6 @@
             if (inters.length > 0) {
                 const clickedIdx = inters[0].index;
                 
-                // VERCEL / MOBILE FIX: Tapping an isolated node opens the encyclopedia
                 if (isolatedNodeIdx === clickedIdx) {
                     window.open(fotwBase + 'flags/' + nodeFiles[clickedIdx].toLowerCase(), '_blank');
                 } else {
@@ -746,7 +760,6 @@
                 .sort((a,b)=>a.distanceToRay-b.distanceToRay);
                 
             if (inters.length > 0) {
-                // VERCEL FIX: Open dynamic FOTW link
                 window.open(fotwBase + 'flags/' + nodeFiles[inters[0].index].toLowerCase(), '_blank');
             }
         });
@@ -760,22 +773,34 @@
             if (!htmlFilename) return '';
             const name = htmlFilename.toLowerCase().replace('.html', '').replace('.htm', '');
             const firstLetter = name.charAt(0);
-            // VERCEL FIX
             return fotwBase + 'images/' + firstLetter + '/' + name + '.gif';
         }
 
         let currentHoveredIdx = -1; 
         const tooltip = document.getElementById('tooltip');
+        let raycastFrameThrottle = 0; // Performance optimization counter
 
         function animate() {
             requestAnimationFrame(animate);
+            
+            // Calculate if the camera is actively sliding/panning
+            const cameraMoving = Math.abs(targetX - camera.position.x) > 5 || 
+                                 Math.abs(targetY - camera.position.y) > 5 || 
+                                 Math.abs(targetZ - camera.position.z) > 10;
+
             camera.position.x += (targetX - camera.position.x) * 0.08;
             camera.position.y += (targetY - camera.position.y) * 0.08;
             camera.position.z += (targetZ - camera.position.z) * 0.08;
 
             if(activePathLine) activePathLine.material.uniforms.uTime.value += 0.01;
 
-            if (pointsObject && !isDragging) {
+            raycastFrameThrottle++;
+
+            // Only run raycasting when something moves, and run it far less frequently on mobile devices
+            const shouldRaycast = mouseNeedsUpdate || cameraMoving;
+            const throttleInterval = isMobile ? 8 : 2; // Raycast every 8 frames on mobile, 2 frames on desktop
+
+            if (pointsObject && !isDragging && shouldRaycast && (raycastFrameThrottle % throttleInterval === 0)) {
                 raycaster.setFromCamera(mouse, camera);
                 raycaster.params.Points.threshold = Math.max(isolatedNodeIdx !== -1 ? 75 : 30, camera.position.z * 0.0004);
                 
@@ -794,26 +819,33 @@
                         
                         let safeImg = "";
                         if (nodeImages[idx] && nodeImages[idx] !== "") {
-                            // VERCEL FIX
                             safeImg = new URL(nodeImages[idx], fotwBase + 'flags/').href;
                         } else {
                             safeImg = getFlagImageURL(nodeFiles[idx]);
                         }
                         const imgHTML = `<img src="${safeImg}" onerror="this.style.display='none'">`;
                         
-                        // Added tip letting mobile users know they can double-tap
                         tooltip.innerHTML = `${imgHTML}${nodeNames[idx]}<span>File: ${nodeFiles[idx]}</span><em>Right-click (or tap twice) to open Encyclopedia</em>`;
                     }
                 } else {
                     tooltip.style.display = 'none';
                     currentHoveredIdx = -1; 
                 }
-            } else {
-                tooltip.style.display = 'none';
-                currentHoveredIdx = -1; 
+                mouseNeedsUpdate = false; // Reset the movement trigger
+            } else if (!shouldRaycast && !isDragging) {
+                // Smooth tooltip tracking when camera drifts to a stop
+                if (currentHoveredIdx !== -1) {
+                    tooltip.style.left = (mouseClientX + 15) + 'px'; 
+                    tooltip.style.top = (mouseClientY + 15) + 'px';
+                }
             }
 
-            composer.render();
+            // PERFORMANCE FIX 4: Render directly on mobile instead of going through the postprocessing composer
+            if (isMobile) {
+                renderer.render(scene, camera);
+            } else {
+                composer.render();
+            }
         }
         animate();
 

@@ -11,13 +11,39 @@
         
         #loading { position: absolute; top: 50%; width: 100%; text-align: center; color: #00ffcc; font-family: monospace; font-size: 24px; text-shadow: 0 0 10px #00ffcc; pointer-events: none; z-index: 100;}
         
+        /* UNIVERSAL COLLAPSIBLE SIDEBAR STYLE (Fits all device types) */
         #sidebar {
-            position: absolute; top: 20px; left: 20px; width: 320px; max-height: calc(100vh - 40px);
-            background: rgba(10, 10, 10, 0.85); color: #fff; font-family: sans-serif; padding: 16px;
-            border-radius: 8px; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; z-index: 10; backdrop-filter: blur(5px);
-            /* Reset transformations for desktop */
-            transform: none;
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 320px; 
+            height: 100vh;
+            max-height: 100vh;
+            background: rgba(10, 10, 10, 0.9); 
+            color: #fff; 
+            font-family: sans-serif; 
+            padding: 20px;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.9); 
+            border-right: 1px solid #333;
+            display: flex; 
+            flex-direction: column; 
+            z-index: 10; 
+            backdrop-filter: blur(5px);
+            box-sizing: border-box;
+            overflow-y: auto;
+
+            /* Collapsed by default, fully hidden from calculations */
+            transform: translateX(-100%);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, visibility 0.3s;
+        }
+
+        /* Active Class (Triggered via JS) */
+        #sidebar.active {
+            transform: translateX(0); /* Slide in smoothly */
             opacity: 1;
             visibility: visible;
             pointer-events: auto;
@@ -67,9 +93,9 @@
         #tooltip span { display: block; font-size: 11px; color: #aaa; margin-top: 4px; }
         #tooltip em { display: block; font-size: 10px; color: #00ffcc; margin-top: 6px; font-style: normal; }
 
-        /* Floating Menu Toggle Button for Mobiles/Tablets */
+        /* Floating Menu Toggle Button (ALWAYS active, visible on all monitors and touchscreens) */
         #menu-toggle {
-            display: none;
+            display: block; 
             position: absolute;
             top: 20px;
             right: 20px;
@@ -91,37 +117,11 @@
             background: rgba(0, 255, 204, 0.1);
         }
 
-        /* MOBILE & TABLET RESPONSIVE STYLING */
-        @media (max-width: 1024px) {
-            #menu-toggle {
-                display: block; /* Visible on mobile/tablet screens */
-            }
+        /* MOBILE & TABLET STYLING OVERRIDES */
+        @media (max-width: 768px) {
             #sidebar {
-                top: 0;
-                left: 0;
-                width: 290px; /* Controlled, compact width */
-                height: 100vh; /* Full screen height */
-                max-height: 100vh; 
-                border-radius: 0; /* Align perfectly with left screen border */
-                border: none;
-                border-right: 1px solid #333;
+                width: 280px; /* Slightly narrower drawer for vertical phone ports */
                 padding: 15px; 
-                box-sizing: border-box;
-                overflow-y: auto; 
-                
-                /* Slide drawer completely out to the left and disable interactions */
-                transform: translateX(-100%);
-                opacity: 0;
-                visibility: hidden;
-                pointer-events: none;
-                
-                transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, visibility 0.3s;
-            }
-            #sidebar.active {
-                transform: translateX(0); /* Slide in cleanly */
-                opacity: 1;
-                visibility: visible;
-                pointer-events: auto;
             }
             #tooltip { max-width: 200px; font-size: 12px; }
             #tooltip img { max-height: 90px; }
@@ -234,7 +234,22 @@
         const menuToggle = document.getElementById('menu-toggle');
         const sidebar = document.getElementById('sidebar');
 
-        // Toggle state drawer on mobile
+        // UNIVERSAL DRAWER STATE INITIALIZATION
+        // Starts collapsed on devices under 1024px width, open on larger desktop screens
+        const startCollapsed = window.innerWidth <= 1024;
+        if (startCollapsed) {
+            sidebar.classList.remove('active');
+            menuToggle.textContent = '☰ MENU';
+            menuToggle.style.borderColor = '#00ffcc';
+            menuToggle.style.color = '#00ffcc';
+        } else {
+            sidebar.classList.add('active');
+            menuToggle.textContent = '✕ CLOSE';
+            menuToggle.style.borderColor = '#ff4444';
+            menuToggle.style.color = '#ff4444';
+        }
+
+        // Toggle drawer event handler (Universal)
         menuToggle.addEventListener('click', () => {
             sidebar.classList.toggle('active');
             if (sidebar.classList.contains('active')) {
@@ -248,7 +263,7 @@
             }
         });
 
-        // Auto-close menu drawer when an action triggers on mobile (or screens <= 1024px)
+        // Auto-close menu drawer when an action triggers on devices <= 1024px width
         function closeMenuOnMobile() {
             if (window.innerWidth <= 1024 && sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');

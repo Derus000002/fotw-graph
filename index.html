@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- MOBILE FIX 1: Viewport meta tag to prevent forced zooming on touch devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FOTW Cosmic Network</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; user-select: none; }
+        canvas { display: block; touch-action: none; } /* touch-action: none prevents pull-to-refresh on mobile */
+        
+        #loading { position: absolute; top: 50%; width: 100%; text-align: center; color: #00ffcc; font-family: monospace; font-size: 24px; text-shadow: 0 0 10px #00ffcc; pointer-events: none; z-index: 100;}
+        
+        #sidebar {
+            position: absolute; top: 20px; left: 20px; width: 320px; max-height: calc(100vh - 40px);
+            background: rgba(10, 10, 10, 0.85); color: #fff; font-family: sans-serif; padding: 16px;
+            border-radius: 8px; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column; z-index: 10; backdrop-filter: blur(5px);
+        }
+        
+        #sidebar h2 { font-size: 15px; margin: 0 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; color: #eee; }
+        
+        input { width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; font-size: 13px; margin-bottom: 5px; }
+        input:focus { outline: none; border-color: #00ffcc; box-shadow: 0 0 8px rgba(0,255,204,0.3); }
+        
+        .search-results {
+            position: absolute; top: 38px; left: 0; width: 100%; background: #111; border: 1px solid #444;
+            border-radius: 4px; max-height: 150px; overflow-y: auto; display: none; z-index: 15;
+        }
+        .search-item { padding: 8px 12px; cursor: pointer; font-size: 12px; }
+        .search-item:hover { background: #333; color: #00ffcc; }
+
+        .btn-row { display: flex; gap: 5px; margin-bottom: 10px; }
+        button {
+            flex: 1; padding: 8px; background: #222; border: 1px solid #555; color: white; cursor: pointer;
+            border-radius: 4px; font-size: 11px; text-transform: uppercase; transition: all 0.2s;
+        }
+        button:hover { background: #444; border-color: #00ffcc; }
+        
+        #path-info { font-size: 12px; color: #00ffcc; text-align: center; margin-bottom: 10px; min-height: 15px; font-weight: bold; }
+
+        #community-list { overflow-y: auto; flex-grow: 1; padding-right: 5px; }
+        #community-list::-webkit-scrollbar { width: 4px; }
+        #community-list::-webkit-scrollbar-thumb { background: #555; border-radius: 2px; }
+        
+        .community-item {
+            padding: 6px 8px; margin-bottom: 5px; border-radius: 4px; cursor: pointer;
+            font-size: 11px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .community-item:hover { background: rgba(255,255,255,0.1); }
+        .community-left { display: flex; align-items: center; flex: 1; min-width: 0; }
+        .community-color { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; box-shadow: 0 0 5px currentColor; }
+        .community-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .community-size { font-size: 10px; color: #888; margin-left: 8px; }
+
+        #tooltip { 
+            position: absolute; display: none; background: rgba(5, 5, 5, 0.95); color: #fff; 
+            padding: 10px; border-radius: 4px; font-family: sans-serif; font-size: 14px; 
+            pointer-events: none; border: 1px solid #444; box-shadow: 0 0 20px rgba(0,255,204,0.1); z-index: 20; max-width: 250px;
+        }
+        #tooltip img { max-width: 100%; height: auto; max-height: 140px; display: block; margin-bottom: 8px; border-radius: 2px; box-shadow: 0 0 5px rgba(255,255,255,0.2); }
+        #tooltip span { display: block; font-size: 11px; color: #aaa; margin-top: 4px; }
+        #tooltip em { display: block; font-size: 10px; color: #00ffcc; margin-top: 6px; font-style: normal; }
+
+        /* MOBILE FIX 2: Responsive Sidebar */
+        @media (max-width: 768px) {
+            #sidebar {
+                top: 10px; left: 10px; width: calc(100vw - 20px); 
+                max-height: 40vh; padding: 12px; box-sizing: border-box;
+            }
+            #sidebar h2 { font-size: 13px; }
+            #tooltip { max-width: 200px; font-size: 12px; }
+            #tooltip img { max-height: 90px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Connecting to Galaxy...</div>
+    <div id="tooltip"></div>
+    
+    <div id="sidebar">
+        <h2>Global Search</h2>
+        <div style="position: relative; margin-bottom: 15px;">
+            <input type="text" id="search-bar" placeholder="Locate Flag Node...">
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        <h2>Data Path Finder</h2>
+        <div style="position: relative;">
+            <input type="text" id="path-source" placeholder="Source Node...">
+            <div id="path-source-results" class="search-results"></div>
+        </div>
+        <div style="position: relative;">
+            <input type="text" id="path-target" placeholder="Target Node...">
+            <div id="path-target-results" class="search-results"></div>
+        </div>
+        
+        <div class="btn-row">
+            <button id="btn-find-path">Initiate Trace</button>
+            <button id="btn-longest-path">Graph Diameter</button>
+        </div>
+        <div class="btn-row">
+            <button id="btn-home">Reset & Home</button>
+        </div>
+        <div id="path-info"></div>
+
+        <h2>Cultural Topologies</h2>
+        <div id="community-list"></div>
+    </div>
+
+    <!-- Required Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <script>
+        // VERCEL FIX: Dynamically generate absolute paths regardless of hosting environment.
+        const baseOrigin = window.location.origin;
+        let basePath = window.location.pathname;
+        if (!basePath.endsWith('/')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+        }
+        const fotwBase = baseOrigin + basePath + 'fotw/';
+
+        const COORDINATE_SCALE = 150.0; 
+        const BASE_ALPHA = 0.5; 
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000000);
+        camera.position.set(0, 0, 800000); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const renderScene = new THREE.RenderPass(scene, camera);
+        const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.2;
+        bloomPass.strength = 0.35;
+        bloomPass.radius = 0.2;
+
+        const composer = new THREE.EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        let targetX = 0, targetY = 0, targetZ = 800000; 
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let mouseMovedDuringClick = false; 
+        let initialPinchDistance = null; // Mobile zoom state
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let mouseClientX = 0, mouseClientY = 0;
+        
+        let numNodes = 0;
+        let positions, colors, originalSizes;
+        const nodeNames = [], nodeFiles = [], nodeImages = [], nodeCommunities = [];
+        let pointsObject = null, linesObject = null;
+        let activePathLine = null;
+        
+        let adjListOut = [], adjListIn = [], longestPath = [], dataEdges = [];
+        let isolatedNodeIdx = -1;
+
+        function updateURLParams(params) {
+            const url = new URL(window.location);
+            for (let k of Object.keys(params)) {
+                if (params[k] === null) url.searchParams.delete(k);
+                else url.searchParams.set(k, params[k]);
+            }
+            window.history.pushState({}, '', url);
+        }
+
+        const vertexShader = `
+            attribute float size;
+            attribute vec3 customColor;
+            attribute float customAlpha;
+            varying vec3 vColor;
+            varying float vAlpha;
+            void main() {
+                vColor = customColor;
+                if (customAlpha < 0.02) { 
+                    vAlpha = 0.0;
+                    gl_PointSize = 0.0;
+                    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); 
+                } else { 
+                    vAlpha = customAlpha;
+                    vec4 mvPosition = modelViewMatrix * vec4(position.x, position.y, 0.0, 1.0);
+                    gl_PointSize = clamp((size * 0.1) * pow(250000.0 / -mvPosition.z, 0.5), 1.0, 12.0); 
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            }
+        `;
+        const fragmentShader = `
+            varying vec3 vColor;
+            varying float vAlpha;
+            void main() {
+                if (vAlpha < 0.02) discard; 
+                if (distance(gl_PointCoord, vec2(0.5, 0.5)) > 0.5) discard;
+                gl_FragColor = vec4(vColor, vAlpha);
+            }
+        `;
+
+        const edgeVertexShader = `
+            attribute vec3 color;
+            attribute float customAlpha;
+            varying vec3 vColor;
+            varying float vAlpha;
+            void main() {
+                vColor = color;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                float depth = -mvPosition.z; 
+                
+                if (customAlpha < 0.02) {
+                    vAlpha = 0.0;
+                    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); 
+                } else if (customAlpha > 1.5) { 
+                    vAlpha = 2.0; 
+                    gl_Position = projectionMatrix * mvPosition;
+                } else if (customAlpha > 0.4 && customAlpha < 0.6) { 
+                    vAlpha = 0.05; 
+                    gl_Position = projectionMatrix * mvPosition;
+                } else {
+                    float t = smoothstep(60000.0, 250000.0, depth);
+                    vAlpha = mix(0.015, 0.0018, t); 
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            }
+        `;
+
+        const edgeFragmentShader = `
+            varying vec3 vColor;
+            varying float vAlpha;
+            void main() { 
+                if (vAlpha < 0.001) discard; 
+                gl_FragColor = vec4(vColor, vAlpha); 
+            }
+        `;
+
+        fetch('graph_data.json').then(res => res.json()).then(data => {
+            document.getElementById('loading').style.display = 'none';
+
+            dataEdges = data.edges;
+            longestPath = data.longest_path || [];
+
+            const listContainer = document.getElementById('community-list');
+            data.communities.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'community-item';
+                const hexColor = `rgb(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)})`;
+
+                item.innerHTML = `
+                    <div class="community-left">
+                        <span class="community-color" style="background-color: ${hexColor}; color: ${hexColor}"></span>
+                        <span class="community-name" title="${c.name}">${c.name}</span>
+                    </div><span class="community-size">${c.size}</span>
+                `;
+                item.addEventListener('mouseenter', () => { if (isolatedNodeIdx === -1) isolateCommunity(c.id); });
+                item.addEventListener('mouseleave', () => { if (isolatedNodeIdx === -1) resetCommunityIsolation(); });
+                item.addEventListener('click', () => {
+                    isolatedNodeIdx = -3; 
+                    isolateCommunity(c.id);
+                    let sX = 0, sY = 0, cCount = 0;
+                    for (let i = 0; i < numNodes; i++) {
+                        if (nodeCommunities[i] === c.id) { sX += positions[i*3]; sY += positions[i*3+1]; cCount++; }
+                    }
+                    if (cCount > 0) { targetX = sX/cCount; targetY = sY/cCount; targetZ = 30000; }
+                });
+                listContainer.appendChild(item);
+            });
+
+            numNodes = data.nodes.length;
+            positions = new Float32Array(numNodes * 3);
+            colors = new Float32Array(numNodes * 3);
+            originalSizes = new Float32Array(numNodes);
+            const nodeAlphas = new Float32Array(numNodes).fill(BASE_ALPHA); 
+
+            adjListOut = Array.from({length: numNodes}, () => []);
+            adjListIn = Array.from({length: numNodes}, () => []);
+
+            for (let i = 0; i < numNodes; i++) {
+                const n = data.nodes[i];
+                nodeNames.push(n.name); nodeFiles.push(n.filename); 
+                nodeImages.push(n.image || "");
+                nodeCommunities.push(n.community); 
+
+                positions[i*3] = n.x * COORDINATE_SCALE; positions[i*3+1] = n.y * COORDINATE_SCALE; positions[i*3+2] = 0;
+                
+                const comm = data.communities.find(c => c.id === n.community);
+                colors[i*3] = comm ? comm.r : 1; colors[i*3+1] = comm ? comm.g : 1; colors[i*3+2] = comm ? comm.b : 1;
+                originalSizes[i] = n.size;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('customColor', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(new Float32Array(originalSizes), 1));
+            geometry.setAttribute('customAlpha', new THREE.BufferAttribute(nodeAlphas, 1)); 
+
+            pointsObject = new THREE.Points(geometry, new THREE.ShaderMaterial({
+                vertexShader, fragmentShader, blending: THREE.NormalBlending, depthTest: false, transparent: true
+            }));
+            scene.add(pointsObject);
+
+            const numEdges = dataEdges.length;
+            const edgePositions = new Float32Array(numEdges * 6);
+            const edgeColors = new Float32Array(numEdges * 6);
+            const edgeAlphas = new Float32Array(numEdges * 2).fill(1.0);
+            
+            for (let i = 0; i < numEdges; i++) {
+                const s = dataEdges[i][0]; const t = dataEdges[i][1];
+                adjListOut[s].push(t); adjListIn[t].push(s);
+                
+                edgePositions[i*6] = positions[s*3]; edgePositions[i*6+1] = positions[s*3+1];
+                edgePositions[i*6+3] = positions[t*3]; edgePositions[i*6+4] = positions[t*3+1];
+
+                edgeColors[i*6] = colors[s*3]; edgeColors[i*6+1] = colors[s*3+1]; edgeColors[i*6+2] = colors[s*3+2];
+                edgeColors[i*6+3] = colors[t*3]; edgeColors[i*6+4] = colors[t*3+1]; edgeColors[i*6+5] = colors[t*3+2];
+            }
+
+            const edgeGeo = new THREE.BufferGeometry();
+            edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+            edgeGeo.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
+            edgeGeo.setAttribute('customAlpha', new THREE.BufferAttribute(edgeAlphas, 1)); 
+            
+            linesObject = new THREE.LineSegments(edgeGeo, new THREE.ShaderMaterial({
+                vertexShader: edgeVertexShader, fragmentShader: edgeFragmentShader,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            scene.add(linesObject);
+
+            setupUI();
+            checkURLParamsOnLoad();
+        });
+
+        function findShortestPathBidirectional(sIdx, tIdx) {
+            if (sIdx === tIdx) return [sIdx];
+
+            let qF = [sIdx], qB = [tIdx];
+            let visitedF = new Uint8Array(numNodes), visitedB = new Uint8Array(numNodes);
+            visitedF[sIdx] = 1; visitedB[tIdx] = 1;
+            
+            let parentF = new Int32Array(numNodes).fill(-1);
+            let parentB = new Int32Array(numNodes).fill(-1);
+            
+            let meetingNode = -1;
+
+            while(qF.length > 0 && qB.length > 0) {
+                let u = qF.shift();
+                let neighbors = adjListOut[u];
+                for(let i=0; i < neighbors.length; i++) {
+                    let v = neighbors[i];
+                    if(!visitedF[v]) {
+                        visitedF[v] = 1; parentF[v] = u; qF.push(v);
+                        if(visitedB[v]) { meetingNode = v; break; }
+                    }
+                }
+                if(meetingNode !== -1) break;
+                
+                u = qB.shift();
+                neighbors = adjListIn[u];
+                for(let i=0; i < neighbors.length; i++) {
+                    let v = neighbors[i];
+                    if(!visitedB[v]) {
+                        visitedB[v] = 1; parentB[v] = u; qB.push(v);
+                        if(visitedF[v]) { meetingNode = v; break; }
+                    }
+                }
+                if(meetingNode !== -1) break;
+            }
+
+            if(meetingNode === -1) return null;
+            
+            let path = [];
+            let curr = meetingNode;
+            while(curr !== -1) { path.unshift(curr); curr = parentF[curr]; }
+            curr = parentB[meetingNode];
+            while(curr !== -1) { path.push(curr); curr = parentB[curr]; }
+            
+            return path;
+        }
+
+        function drawAnimatedPath(pathNodes) {
+            if (activePathLine) { scene.remove(activePathLine); activePathLine.geometry.dispose(); activePathLine.material.dispose(); }
+            
+            const pPoints = pathNodes.map(idx => new THREE.Vector3(positions[idx*3], positions[idx*3+1], 0));
+            const pGeo = new THREE.BufferGeometry().setFromPoints(pPoints);
+            
+            const uvs = new Float32Array(pPoints.length);
+            let totalDist = 0; const dists = [0];
+            for (let i = 1; i < pPoints.length; i++) {
+                totalDist += pPoints[i].distanceTo(pPoints[i-1]);
+                dists.push(totalDist);
+            }
+            for (let i = 0; i < pPoints.length; i++) uvs[i] = dists[i] / totalDist;
+            pGeo.setAttribute('pathUv', new THREE.BufferAttribute(uvs, 1));
+
+            const pMat = new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0x00ffcc) } },
+                vertexShader: `
+                    attribute float pathUv; varying float vUv;
+                    void main() { vUv = pathUv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+                `,
+                fragmentShader: `
+                    uniform float uTime; uniform vec3 uColor; varying float vUv;
+                    void main() {
+                        float flow = fract(vUv * 6.0 - uTime * 2.5); 
+                        float intensity = smoothstep(0.4, 1.0, flow) * 2.5 + 0.5;
+                        gl_FragColor = vec4(uColor * intensity, 1.0); 
+                    }
+                `,
+                transparent: true, blending: THREE.AdditiveBlending, depthTest: false, linewidth: 2 
+            });
+            
+            activePathLine = new THREE.Line(pGeo, pMat);
+            scene.add(activePathLine);
+        }
+
+        function highlightPath(pathNodes) {
+            isolatedNodeIdx = -2;
+            const nodeAlpha = pointsObject.geometry.attributes.customAlpha;
+            const sizeAttr = pointsObject.geometry.attributes.size;
+            const edgeAlpha = linesObject.geometry.attributes.customAlpha;
+
+            edgeAlpha.array.fill(0.0); 
+            edgeAlpha.needsUpdate = true;
+
+            const pathSet = new Set(pathNodes);
+            for (let i = 0; i < numNodes; i++) {
+                if (pathSet.has(i)) {
+                    nodeAlpha.array[i] = 1.0; 
+                    sizeAttr.array[i] = originalSizes[i] * 3.0 + 30.0;
+                } else {
+                    nodeAlpha.array[i] = 0.0; 
+                    sizeAttr.array[i] = originalSizes[i];
+                }
+            }
+            nodeAlpha.needsUpdate = true; sizeAttr.needsUpdate = true;
+
+            drawAnimatedPath(pathNodes);
+
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            pathNodes.forEach(idx => {
+                const x = positions[idx*3], y = positions[idx*3+1];
+                if(x < minX) minX = x; if(x > maxX) maxX = x;
+                if(y < minY) minY = y; if(y > maxY) maxY = y;
+            });
+            targetX = (minX + maxX)/2; targetY = (minY + maxY)/2;
+            targetZ = Math.max((maxX - minX), (maxY - minY), 10000) * 1.5; 
+        }
+
+        function isolateCommunity(cid) {
+            const nodeAlpha = pointsObject.geometry.attributes.customAlpha; 
+            const edgeAlpha = linesObject.geometry.attributes.customAlpha;
+            
+            for (let i = 0; i < numNodes; i++) {
+                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.0; 
+            }
+            
+            for (let i = 0; i < dataEdges.length; i++) { 
+                const sourceComm = nodeCommunities[dataEdges[i][0]];
+                const targetComm = nodeCommunities[dataEdges[i][1]];
+                
+                if (sourceComm === cid && targetComm === cid) {
+                    edgeAlpha.array[i*2] = edgeAlpha.array[i*2+1] = 0.5; 
+                } else {
+                    edgeAlpha.array[i*2] = edgeAlpha.array[i*2+1] = 0.0; 
+                }
+
+            }
+            nodeAlpha.needsUpdate = true; edgeAlpha.needsUpdate = true;
+        }
+
+        function resetCommunityIsolation() {
+            pointsObject.geometry.attributes.customAlpha.array.fill(BASE_ALPHA); pointsObject.geometry.attributes.customAlpha.needsUpdate = true;
+            linesObject.geometry.attributes.customAlpha.array.fill(1.0); linesObject.geometry.attributes.customAlpha.needsUpdate = true;
+        }
+
+        function isolateFirstDegree(idx) {
+            isolatedNodeIdx = idx;
+            const neighbors = new Set();
+            neighbors.add(idx);
+            
+            const outList = adjListOut[idx] || [];
+            for (let i = 0; i < outList.length; i++) neighbors.add(outList[i]);
+            
+            const inList = adjListIn[idx] || [];
+            for (let i = 0; i < inList.length; i++) neighbors.add(inList[i]);
+            
+            const nodeAlpha = pointsObject.geometry.attributes.customAlpha; 
+            const sizeAttr = pointsObject.geometry.attributes.size;
+            const edgeAlpha = linesObject.geometry.attributes.customAlpha;
+
+            for (let i = 0; i < numNodes; i++) {
+                if (i === idx) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = 100.0; } 
+                else if (neighbors.has(i)) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = originalSizes[i] * 3.5; } 
+                else { nodeAlpha.array[i] = 0.0; sizeAttr.array[i] = originalSizes[i]; } 
+            }
+            nodeAlpha.needsUpdate = true; sizeAttr.needsUpdate = true;
+
+            for (let i = 0; i < dataEdges.length; i++) {
+                const s = dataEdges[i][0]; const t = dataEdges[i][1];
+                const active = (s === idx || t === idx);
+                edgeAlpha.array[i*2] = edgeAlpha.array[i*2+1] = active ? 2.0 : 0.0; 
+            }
+            edgeAlpha.needsUpdate = true;
+            if(activePathLine) { scene.remove(activePathLine); activePathLine = null; }
+            updateURLParams({ source: null, target: null, isolate: nodeFiles[idx].replace('.HTML','') });
+        }
+
+        function resetIsolation() {
+            if (isolatedNodeIdx === -1) return;
+            isolatedNodeIdx = -1;
+            document.getElementById('path-info').textContent = "";
+            if (activePathLine) { scene.remove(activePathLine); activePathLine = null; }
+            
+            pointsObject.geometry.attributes.customAlpha.array.fill(BASE_ALPHA); pointsObject.geometry.attributes.customAlpha.needsUpdate = true;
+            linesObject.geometry.attributes.customAlpha.array.fill(1.0); linesObject.geometry.attributes.customAlpha.needsUpdate = true;
+            pointsObject.geometry.attributes.size.array.set(originalSizes); pointsObject.geometry.attributes.size.needsUpdate = true;
+        }
+
+        let pathSourceIdx = -1, pathTargetIdx = -1;
+
+        function setupUI() {
+            setupAutocomplete('search-bar', 'search-results', idx => {
+                resetIsolation(); targetX = positions[idx*3]; targetY = positions[idx*3+1]; targetZ = 10000;
+                isolateFirstDegree(idx);
+                document.getElementById('search-bar').value = nodeNames[idx];
+            });
+
+            setupAutocomplete('path-source', 'path-source-results', idx => { pathSourceIdx = idx; document.getElementById('path-source').value = nodeNames[idx]; });
+            setupAutocomplete('path-target', 'path-target-results', idx => { pathTargetIdx = idx; document.getElementById('path-target').value = nodeNames[idx]; });
+
+            document.getElementById('btn-find-path').addEventListener('click', () => {
+                if (pathSourceIdx === -1 || pathTargetIdx === -1) { document.getElementById('path-info').textContent = "Select nodes!"; return; }
+                const path = findShortestPathBidirectional(pathSourceIdx, pathTargetIdx);
+                if (path) {
+                    document.getElementById('path-info').textContent = `Success! ${path.length - 1} Data Hops`;
+                    highlightPath(path);
+                    updateURLParams({ source: nodeFiles[pathSourceIdx].replace('.HTML',''), target: nodeFiles[pathTargetIdx].replace('.HTML','') });
+                } else { document.getElementById('path-info').textContent = `No connection exists.`; }
+            });
+
+            document.getElementById('btn-longest-path').addEventListener('click', () => {
+                if (!longestPath.length) return;
+                pathSourceIdx = longestPath[0]; pathTargetIdx = longestPath[longestPath.length-1];
+                document.getElementById('path-source').value = nodeNames[pathSourceIdx];
+                document.getElementById('path-target').value = nodeNames[pathTargetIdx];
+                document.getElementById('path-info').textContent = `Diameter Extracted: ${longestPath.length - 1} Hops`;
+                highlightPath(longestPath);
+            });
+
+            document.getElementById('btn-home').addEventListener('click', () => {
+                resetIsolation(); targetX = 0; targetY = 0; targetZ = 800000;
+                document.getElementById('path-source').value = ""; document.getElementById('path-target').value = ""; document.getElementById('search-bar').value = "";
+                pathSourceIdx = -1; pathTargetIdx = -1;
+                updateURLParams({ source: null, target: null, isolate: null });
+            });
+        }
+
+        function setupAutocomplete(inputId, resId, onSelect) {
+            const input = document.getElementById(inputId); const res = document.getElementById(resId);
+            input.addEventListener('input', () => {
+                const q = input.value.toLowerCase().trim(); res.innerHTML = '';
+                if (q.length < 2) { res.style.display = 'none'; return; }
+                
+                const searchTerms = q.split(/\s+/);
+                let matches = [];
+                
+                for (let i = 0; i < numNodes; i++) {
+                    const nameLower = nodeNames[i].toLowerCase();
+                    const fileLower = nodeFiles[i].toLowerCase();
+                    
+                    let allTermsFound = true;
+                    for (let term of searchTerms) {
+                        if (!(nameLower.includes(term) || fileLower.includes(term))) {
+                            allTermsFound = false;
+                            break;
+                        }
+                    }
+                    
+                    if (allTermsFound) {
+                        let score = nameLower.length; 
+                        
+                        if (nameLower === q) score -= 10000; 
+                        if (nameLower.startsWith(q)) score -= 500; 
+                        
+                        for (let term of searchTerms) {
+                            const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp('\\b' + safeTerm + '\\b'); 
+                            
+                            if (regex.test(nameLower)) {
+                                score -= 2000; 
+                            }
+                        }
+                        
+                        matches.push({ name: nodeNames[i], i: i, score: score });
+                    }
+                }
+                
+                matches.sort((a, b) => a.score - b.score);
+                matches = matches.slice(0, 10);
+
+                if (matches.length > 0) {
+                    res.style.display = 'block';
+                    matches.forEach(m => {
+                        const d = document.createElement('div'); d.className = 'search-item'; d.textContent = m.name;
+                        d.addEventListener('click', () => { onSelect(m.i); res.style.display = 'none'; });
+                        res.appendChild(d);
+                    });
+                } else res.style.display = 'none';
+            });
+            document.addEventListener('click', e => { if(e.target !== input) res.style.display = 'none'; });
+        }
+
+
+        function checkURLParamsOnLoad() {
+            const params = new URLSearchParams(window.location.search);
+            const sId = params.get('source'); const tId = params.get('target');
+            if (sId && tId) {
+                let s = -1, t = -1;
+                for(let i=0; i<numNodes; i++) {
+                    if(nodeFiles[i].replace('.HTML','') === sId.toUpperCase()) s = i;
+                    if(nodeFiles[i].replace('.HTML','') === tId.toUpperCase()) t = i;
+                }
+                if(s !== -1 && t !== -1) {
+                    pathSourceIdx = s; pathTargetIdx = t;
+                    document.getElementById('path-source').value = nodeNames[s]; document.getElementById('path-target').value = nodeNames[t];
+                    document.getElementById('btn-find-path').click();
+                }
+            }
+        }
+
+        // --- STANDARD MOUSE EVENTS ---
+        window.addEventListener('mousedown', e => { if(!e.target.closest('#sidebar') && !e.target.closest('#tooltip')) { isDragging = true; mouseMovedDuringClick = false; previousMousePosition = { x: e.clientX, y: e.clientY }; }});
+        window.addEventListener('mousemove', e => {
+            mouseClientX = e.clientX; mouseClientY = e.clientY;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            if (isDragging) {
+                const dx = e.clientX - previousMousePosition.x, dy = e.clientY - previousMousePosition.y;
+                if (Math.abs(dx)>3 || Math.abs(dy)>3) mouseMovedDuringClick = true;
+                const f = camera.position.z * 0.0012; targetX -= dx * f; targetY += dy * f;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('wheel', e => {
+            if(e.target.closest('#sidebar')) return;
+            targetZ += (e.deltaY > 0 ? 1 : -1) * targetZ * 0.15;
+            targetZ = Math.max(150, Math.min(targetZ, 100000000));
+        });
+
+        // --- MOBILE TOUCH EVENTS (Drag Pan + Pinch Zoom) ---
+        window.addEventListener('touchstart', e => {
+            if (e.target.closest('#sidebar')) return;
+            
+            if (e.touches.length === 2) {
+                // Initiating a pinch-zoom gesture
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            } else if (e.touches.length === 1 && !e.target.closest('#tooltip')) {
+                // Initiating a drag to pan
+                isDragging = true; mouseMovedDuringClick = false; 
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
+                
+                // Track finger for raycaster immediately
+                mouseClientX = e.touches[0].clientX; mouseClientY = e.touches[0].clientY;
+                mouse.x = (mouseClientX / window.innerWidth) * 2 - 1; 
+                mouse.y = -(mouseClientY / window.innerHeight) * 2 + 1;
+            }
+        }, {passive: false});
+
+        window.addEventListener('touchmove', e => {
+            if (e.target.closest('#sidebar')) return;
+            
+            if (e.touches.length === 2) {
+                e.preventDefault(); // Prevent native browser pinch zoom
+                const currentPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (initialPinchDistance) {
+                    const delta = initialPinchDistance - currentPinchDistance;
+                    targetZ += delta * targetZ * 0.005; 
+                    targetZ = Math.max(150, Math.min(targetZ, 100000000));
+                }
+                initialPinchDistance = currentPinchDistance;
+            } else if (isDragging && e.touches.length === 1) {
+                const currentX = e.touches[0].clientX; const currentY = e.touches[0].clientY;
+                const dx = currentX - previousMousePosition.x;
+                const dy = currentY - previousMousePosition.y;
+                
+                if (Math.abs(dx)>3 || Math.abs(dy)>3) mouseMovedDuringClick = true;
+                
+                const f = camera.position.z * 0.0012; 
+                targetX -= dx * f; targetY += dy * f;
+                previousMousePosition = { x: currentX, y: currentY };
+                
+                // Track finger for raycaster
+                mouseClientX = currentX; mouseClientY = currentY;
+                mouse.x = (currentX / window.innerWidth) * 2 - 1; 
+                mouse.y = -(currentY / window.innerHeight) * 2 + 1;
+            }
+        }, {passive: false});
+
+        window.addEventListener('touchend', () => { 
+            isDragging = false; 
+            initialPinchDistance = null; 
+        });
+
+        // --- CLICK EVENT + MOBILE ENCYCLOPEDIA ACCESS ---
+        window.addEventListener('click', e => {
+            if (e.target.closest('#sidebar') || e.target.closest('#tooltip') || mouseMovedDuringClick) return;
+            raycaster.setFromCamera(mouse, camera);
+            
+            raycaster.params.Points.threshold = Math.max(isolatedNodeIdx !== -1 ? 75 : 30, camera.position.z * 0.0004);
+            
+            const inters = raycaster.intersectObject(pointsObject)
+                .filter(x => pointsObject.geometry.attributes.customAlpha.array[x.index] > 0.1)
+                .sort((a,b)=>a.distanceToRay-b.distanceToRay);
+            
+            if (inters.length > 0) {
+                const clickedIdx = inters[0].index;
+                
+                // VERCEL / MOBILE FIX: Tapping an isolated node opens the encyclopedia
+                if (isolatedNodeIdx === clickedIdx) {
+                    window.open(fotwBase + 'flags/' + nodeFiles[clickedIdx].toLowerCase(), '_blank');
+                } else {
+                    isolateFirstDegree(clickedIdx);
+                }
+            }
+            else { resetIsolation(); updateURLParams({ isolate: null }); }
+        });
+
+        // Desktop Right-Click
+        window.addEventListener('contextmenu', e => {
+            if(e.target.closest('#sidebar')) return; e.preventDefault();
+            raycaster.setFromCamera(mouse, camera);
+            
+            raycaster.params.Points.threshold = Math.max(isolatedNodeIdx !== -1 ? 75 : 30, camera.position.z * 0.0004);
+            
+            const inters = raycaster.intersectObject(pointsObject)
+                .filter(x => pointsObject.geometry.attributes.customAlpha.array[x.index] > 0.1)
+                .sort((a,b)=>a.distanceToRay-b.distanceToRay);
+                
+            if (inters.length > 0) {
+                // VERCEL FIX: Open dynamic FOTW link
+                window.open(fotwBase + 'flags/' + nodeFiles[inters[0].index].toLowerCase(), '_blank');
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function getFlagImageURL(htmlFilename) {
+            if (!htmlFilename) return '';
+            const name = htmlFilename.toLowerCase().replace('.html', '').replace('.htm', '');
+            const firstLetter = name.charAt(0);
+            // VERCEL FIX
+            return fotwBase + 'images/' + firstLetter + '/' + name + '.gif';
+        }
+
+        let currentHoveredIdx = -1; 
+        const tooltip = document.getElementById('tooltip');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            camera.position.x += (targetX - camera.position.x) * 0.08;
+            camera.position.y += (targetY - camera.position.y) * 0.08;
+            camera.position.z += (targetZ - camera.position.z) * 0.08;
+
+            if(activePathLine) activePathLine.material.uniforms.uTime.value += 0.01;
+
+            if (pointsObject && !isDragging) {
+                raycaster.setFromCamera(mouse, camera);
+                raycaster.params.Points.threshold = Math.max(isolatedNodeIdx !== -1 ? 75 : 30, camera.position.z * 0.0004);
+                
+                const inters = raycaster.intersectObject(pointsObject)
+                    .filter(x => pointsObject.geometry.attributes.customAlpha.array[x.index] > 0.1)
+                    .sort((a,b)=>a.distanceToRay-b.distanceToRay);
+
+                if (inters.length > 0) {
+                    const idx = inters[0].index;
+                    tooltip.style.display = 'block'; 
+                    tooltip.style.left = (mouseClientX + 15) + 'px'; 
+                    tooltip.style.top = (mouseClientY + 15) + 'px';
+                    
+                    if (currentHoveredIdx !== idx) {
+                        currentHoveredIdx = idx;
+                        
+                        let safeImg = "";
+                        if (nodeImages[idx] && nodeImages[idx] !== "") {
+                            // VERCEL FIX
+                            safeImg = new URL(nodeImages[idx], fotwBase + 'flags/').href;
+                        } else {
+                            safeImg = getFlagImageURL(nodeFiles[idx]);
+                        }
+                        const imgHTML = `<img src="${safeImg}" onerror="this.style.display='none'">`;
+                        
+                        // Added tip letting mobile users know they can double-tap
+                        tooltip.innerHTML = `${imgHTML}${nodeNames[idx]}<span>File: ${nodeFiles[idx]}</span><em>Right-click (or tap twice) to open Encyclopedia</em>`;
+                    }
+                } else {
+                    tooltip.style.display = 'none';
+                    currentHoveredIdx = -1; 
+                }
+            } else {
+                tooltip.style.display = 'none';
+                currentHoveredIdx = -1; 
+            }
+
+            composer.render();
+        }
+        animate();
+
+    </script>
+</body>
+</html>

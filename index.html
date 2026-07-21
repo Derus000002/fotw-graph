@@ -119,12 +119,7 @@
 
     <script>
         // VERCEL FIX: Dynamically generate absolute paths regardless of hosting environment.
-        const baseOrigin = window.location.origin;
-        let basePath = window.location.pathname;
-        if (!basePath.endsWith('/')) {
-            basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
-        }
-        const fotwBase = baseOrigin + basePath + 'fotw/';
+        const fotwBase = 'https://www.crwflags.com/fotw/';
 
         const COORDINATE_SCALE = 150.0; 
         const BASE_ALPHA = 0.5; 

@@ -62,13 +62,53 @@
         #tooltip span { display: block; font-size: 11px; color: #aaa; margin-top: 4px; }
         #tooltip em { display: block; font-size: 10px; color: #00ffcc; margin-top: 6px; font-style: normal; }
 
-        /* MOBILE FIX 2: Responsive Sidebar */
+        /* Floating Menu Toggle Button for Mobiles */
+        #menu-toggle {
+            display: none;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(10, 10, 10, 0.9);
+            color: #00ffcc;
+            border: 1px solid #00ffcc;
+            border-radius: 4px;
+            padding: 10px 16px;
+            font-family: sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+            transition: all 0.2s ease;
+        }
+        #menu-toggle:hover {
+            background: rgba(0, 255, 204, 0.1);
+        }
+
+        /* MOBILE FIX 2: Collapsible Sidebar Drawer */
         @media (max-width: 768px) {
-            #sidebar {
-                top: 10px; left: 10px; width: calc(100vw - 20px); 
-                max-height: 40vh; padding: 12px; box-sizing: border-box;
+            #menu-toggle {
+                display: block; /* Visible on touch screens */
             }
-            #sidebar h2 { font-size: 13px; }
+            #sidebar {
+                top: 70px;
+                left: 10px;
+                width: calc(100vw - 20px); 
+                max-height: calc(100vh - 90px); 
+                padding: 12px; 
+                box-sizing: border-box;
+                overflow-y: auto; /* Prevent cut-offs on short/landscape mobile displays */
+                transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+                transform: translateY(-150%); /* Hidden out of bounds by default */
+                opacity: 0;
+                pointer-events: none;
+            }
+            #sidebar.active {
+                transform: translateY(0); /* Drop down elegantly */
+                opacity: 1;
+                pointer-events: auto;
+            }
             #tooltip { max-width: 200px; font-size: 12px; }
             #tooltip img { max-height: 90px; }
         }
@@ -78,6 +118,9 @@
     <div id="loading">Connecting to Galaxy...</div>
     <div id="tooltip"></div>
     
+    <!-- Floating toggle trigger -->
+    <button id="menu-toggle">☰ MENU</button>
+
     <div id="sidebar">
         <h2>Global Search</h2>
         <div style="position: relative; margin-bottom: 15px;">
@@ -172,6 +215,34 @@
         
         let adjListOut = [], adjListIn = [], longestPath = [], dataEdges = [];
         let isolatedNodeIdx = -1;
+
+        // UI Drawer Toggle Elements
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+
+        // Toggle state drawer on mobile
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            if (sidebar.classList.contains('active')) {
+                menuToggle.textContent = '✕ CLOSE';
+                menuToggle.style.borderColor = '#ff4444';
+                menuToggle.style.color = '#ff4444';
+            } else {
+                menuToggle.textContent = '☰ MENU';
+                menuToggle.style.borderColor = '#00ffcc';
+                menuToggle.style.color = '#00ffcc';
+            }
+        });
+
+        // Auto-close menu drawer when an action triggers on mobile
+        function closeMenuOnMobile() {
+            if (isMobile && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                menuToggle.textContent = '☰ MENU';
+                menuToggle.style.borderColor = '#00ffcc';
+                menuToggle.style.color = '#00ffcc';
+            }
+        }
 
         function updateURLParams(params) {
             const url = new URL(window.location);
@@ -276,6 +347,7 @@
                         if (nodeCommunities[i] === c.id) { sX += positions[i*3]; sY += positions[i*3+1]; cCount++; }
                     }
                     if (cCount > 0) { targetX = sX/cCount; targetY = sY/cCount; targetZ = 30000; }
+                    closeMenuOnMobile(); // Automatically hide panel to show selected community coordinates
                 });
                 listContainer.appendChild(item);
             });
@@ -549,6 +621,7 @@
                     document.getElementById('path-info').textContent = `Success! ${path.length - 1} Data Hops`;
                     highlightPath(path);
                     updateURLParams({ source: nodeFiles[pathSourceIdx].replace('.HTML',''), target: nodeFiles[pathTargetIdx].replace('.HTML','') });
+                    closeMenuOnMobile(); // Automatically hide panel to show traced path
                 } else { document.getElementById('path-info').textContent = `No connection exists.`; }
             });
 
@@ -559,6 +632,7 @@
                 document.getElementById('path-target').value = nodeNames[pathTargetIdx];
                 document.getElementById('path-info').textContent = `Diameter Extracted: ${longestPath.length - 1} Hops`;
                 highlightPath(longestPath);
+                closeMenuOnMobile(); // Automatically hide panel to show longest path
             });
 
             document.getElementById('btn-home').addEventListener('click', () => {
@@ -566,6 +640,7 @@
                 document.getElementById('path-source').value = ""; document.getElementById('path-target').value = ""; document.getElementById('search-bar').value = "";
                 pathSourceIdx = -1; pathTargetIdx = -1;
                 updateURLParams({ source: null, target: null, isolate: null });
+                closeMenuOnMobile(); // Automatically hide panel on reset
             });
         }
 
@@ -616,7 +691,11 @@
                     res.style.display = 'block';
                     matches.forEach(m => {
                         const d = document.createElement('div'); d.className = 'search-item'; d.textContent = m.name;
-                        d.addEventListener('click', () => { onSelect(m.i); res.style.display = 'none'; });
+                        d.addEventListener('click', () => { 
+                            onSelect(m.i); 
+                            res.style.display = 'none'; 
+                            closeMenuOnMobile(); // Automatically hide panel when user picks a search result
+                        });
                         res.appendChild(d);
                     });
                 } else res.style.display = 'none';

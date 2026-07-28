@@ -3,256 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FOTW Cosmic Network</title>
+    <title>FOTW Data Terminal</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400&display=swap');
+        /* A completely distinct, professional, data-centric typeface */
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap');
 
         :root {
-            --bg-color: #07090F;
-            --panel-bg: rgba(15, 18, 25, 0.75);
-            --accent: #E2C792; /* Starlight Gold */
-            --accent-hover: #F2DDB0;
-            --text-main: #E2E8F0;
-            --text-muted: #94A3B8;
-            --border-color: rgba(255, 255, 255, 0.1);
+            /* Brutalist / Data-Terminal Palette */
+            --bg-color: #050505;
+            --panel-bg: #0f0f0f;
+            --border-color: #333333;
+            --text-main: #f0f0f0;
+            --text-muted: #7a7a7a;
+            --accent: #FF3B30; /* Signal Red */
+            --accent-dim: rgba(255, 59, 48, 0.1);
+            --active-path: #FFFFFF; 
         }
 
-        body { margin: 0; overflow: hidden; background-color: var(--bg-color); user-select: none; font-family: 'Inter', sans-serif; color: var(--text-main); }
+        body { 
+            margin: 0; overflow: hidden; background-color: var(--bg-color); 
+            user-select: none; font-family: 'IBM Plex Sans', sans-serif; color: var(--text-main); 
+        }
         canvas { display: block; touch-action: none; }
         
         #loading { 
             position: absolute; top: 50%; width: 100%; text-align: center; 
-            color: var(--accent); font-family: 'JetBrains Mono', monospace; 
-            font-size: 18px; font-weight: 300; letter-spacing: 2px;
+            color: var(--text-main); font-family: 'IBM Plex Mono', monospace; 
+            font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;
             pointer-events: none; z-index: 100;
-            animation: pulse 2s infinite ease-in-out;
+            animation: blink 1s step-end infinite;
         }
 
-        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
         #sidebar {
             position: absolute; top: 0; left: 0; width: 340px; height: 100vh;
             background: var(--panel-bg); 
-            padding: 24px;
+            padding: 20px;
             border-right: 1px solid var(--border-color);
             display: flex; flex-direction: column; z-index: 10; 
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             box-sizing: border-box; overflow-y: auto;
             transform: translateX(-100%); opacity: 0; visibility: hidden; pointer-events: none;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
         }
 
         #sidebar.active { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
         
-        #sidebar h2 { 
+        h2 { 
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 11px; margin: 0 0 12px 0; border-bottom: 1px solid var(--border-color); 
-            padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1.5px; 
-            color: var(--text-muted); font-weight: 600; 
+            padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; 
+            color: var(--text-main); font-weight: 600; 
         }
         
         input { 
-            width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); 
-            border: 1px solid var(--border-color); color: white; 
-            border-radius: 6px; box-sizing: border-box; font-size: 13px; 
-            font-family: 'Inter', sans-serif; margin-bottom: 8px; transition: all 0.2s;
+            width: 100%; padding: 10px; background: #000; 
+            border: 1px solid var(--border-color); color: var(--text-main); 
+            border-radius: 0; /* Brutalist sharp edges */
+            box-sizing: border-box; font-size: 13px; 
+            font-family: 'IBM Plex Mono', monospace; margin-bottom: 8px; 
+            transition: border-color 0.1s;
         }
-        input:focus { outline: none; border-color: var(--accent); background: rgba(0,0,0,0.5); }
+        input:focus { outline: none; border-color: var(--text-main); }
         
         .search-results {
-            position: absolute; top: 42px; left: 0; width: 100%; 
-            background: rgba(15, 18, 25, 0.95); border: 1px solid var(--border-color);
-            border-radius: 6px; max-height: 180px; overflow-y: auto; display: none; z-index: 15;
-            backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: absolute; top: 40px; left: 0; width: 100%; 
+            background: #000; border: 1px solid var(--border-color); border-top: none;
+            max-height: 200px; overflow-y: auto; display: none; z-index: 15;
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.5); /* Hard shadow, not soft blur */
         }
-        .search-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .search-item:hover { background: rgba(255,255,255,0.08); color: var(--accent); }
+        .search-item { padding: 10px; cursor: pointer; font-size: 12px; font-family: 'IBM Plex Mono', monospace; border-bottom: 1px solid #1a1a1a; }
+        .search-item:hover { background: var(--text-main); color: #000; }
 
-        /* --- NEW UX COMPONENTS FOR PATH FINDER --- */
+        /* Pathfinder technical box */
         .path-box {
-            background: rgba(0, 0, 0, 0.25);
+            background: #000;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 14px;
-            margin-bottom: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
         }
         .input-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
             margin-bottom: 6px;
-            margin-left: 2px;
         }
         .path-divider {
-            display: flex;
-            justify-content: center;
-            color: var(--border-color);
-            margin: 0px 0 8px 0;
+            display: flex; justify-content: center;
+            color: var(--text-muted); margin: 0px 0 8px 0;
         }
         .action-btn {
-            width: 100%;
-            background: rgba(226, 199, 146, 0.08); 
-            border: 1px solid rgba(226, 199, 146, 0.3);
-            color: var(--accent);
-            margin-top: 12px;
-            padding: 10px;
-            border-radius: 6px;
-            font-family: 'Inter', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.2s;
+            width: 100%; margin-top: 10px; padding: 10px;
+            background: var(--accent); color: #000;
+            border: none; font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer; transition: background 0.1s;
         }
-        .action-btn:hover {
-            background: rgba(226, 199, 146, 0.15);
-            border-color: var(--accent);
-            color: var(--accent-hover);
-            box-shadow: 0 0 12px rgba(226, 199, 146, 0.2);
-        }
+        .action-btn:hover { background: #fff; }
 
-        .btn-row { display: flex; gap: 8px; margin-bottom: 16px; }
+        .btn-row { display: flex; gap: 8px; margin-bottom: 20px; }
         .secondary-btn {
-            flex: 1; padding: 10px; background: rgba(255,255,255,0.05); 
+            flex: 1; padding: 10px; background: transparent; 
             border: 1px solid var(--border-color); color: var(--text-main); 
-            cursor: pointer; border-radius: 6px; font-size: 11px; 
-            font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: 0.5px;
-            text-transform: uppercase; transition: all 0.2s;
+            cursor: pointer; border-radius: 0; font-size: 11px; 
+            font-family: 'IBM Plex Mono', monospace; font-weight: 600; 
+            text-transform: uppercase; transition: all 0.1s;
         }
-        .secondary-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); color: var(--accent-hover); }
+        .secondary-btn:hover { background: var(--text-main); color: #000; border-color: var(--text-main); }
         
-        #path-info { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); text-align: center; margin-bottom: 16px; min-height: 15px; }
+        #path-info { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); text-align: center; margin-bottom: 16px; min-height: 15px; text-transform: uppercase;}
 
         #community-list { overflow-y: auto; flex-grow: 1; padding-right: 5px; }
         #community-list::-webkit-scrollbar { width: 4px; }
-        #community-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+        #community-list::-webkit-scrollbar-thumb { background: var(--border-color); }
         
         .community-item {
-            padding: 8px 10px; margin-bottom: 4px; border-radius: 6px; cursor: pointer;
+            padding: 6px 8px; margin-bottom: 2px; cursor: pointer;
             font-size: 12px; display: flex; align-items: center; justify-content: space-between;
-            transition: background 0.2s;
+            border: 1px solid transparent;
         }
-        .community-item:hover { background: rgba(255,255,255,0.08); }
+        .community-item:hover { border: 1px solid var(--border-color); background: #000; }
         .community-left { display: flex; align-items: center; flex: 1; min-width: 0; }
-        .community-color { width: 10px; height: 10px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; }
-        .community-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 300; }
-        .community-size { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-left: 8px; }
+        .community-color { width: 12px; height: 12px; margin-right: 12px; flex-shrink: 0; }
+        .community-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .community-size { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); margin-left: 8px; }
 
         #tooltip { 
-            position: absolute; display: none; background: rgba(10, 12, 16, 0.85); 
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            color: var(--text-main); padding: 12px; border-radius: 8px; 
-            font-size: 13px; pointer-events: none; border: 1px solid var(--border-color); 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 20; max-width: 260px;
+            position: absolute; display: none; background: #000; 
+            color: var(--text-main); padding: 12px; border: 1px solid var(--border-color); 
+            font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; 
+            pointer-events: none; z-index: 20; max-width: 250px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.8);
         }
-        #tooltip img { max-width: 100%; height: auto; max-height: 140px; display: block; margin-bottom: 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); }
-        #tooltip span { display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 6px; }
-        #tooltip em { display: block; font-size: 10px; color: var(--accent); margin-top: 8px; font-style: normal; opacity: 0.8; }
+        #tooltip img { max-width: 100%; height: auto; max-height: 140px; display: block; margin-bottom: 10px; border: 1px solid var(--border-color); }
+        #tooltip span { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+        #tooltip em { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--accent); margin-top: 10px; font-style: normal; text-transform: uppercase;}
 
         #menu-toggle {
             position: absolute; top: 20px; right: 20px; z-index: 100;
-            background: rgba(15, 18, 25, 0.7); backdrop-filter: blur(10px);
-            color: var(--text-main); border: 1px solid var(--border-color);
-            border-radius: 6px; padding: 10px 16px; font-size: 11px; font-weight: 600; letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            cursor: pointer; transition: all 0.2s;
+            background: #000; color: var(--text-main); border: 1px solid var(--border-color);
+            padding: 10px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; 
+            font-weight: 600; letter-spacing: 1px; cursor: pointer;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+            transition: all 0.1s;
         }
-        #menu-toggle:hover { border-color: var(--accent); color: var(--accent); }
+        #menu-toggle:hover { background: var(--text-main); color: #000; border-color: var(--text-main); }
 
         @media (max-width: 768px) {
-            #sidebar { width: 300px; padding: 20px; }
+            #sidebar { width: 300px; padding: 15px; }
             #tooltip { max-width: 200px; font-size: 12px; }
             #tooltip img { max-height: 100px; }
         }
     </style>
 </head>
 <body>
-    <div id="loading">Connecting to Galaxy...</div>
+    <div id="loading">Establishing Link...</div>
     <div id="tooltip"></div>
     
-    <button id="menu-toggle">☰ MENU</button>
+    <button id="menu-toggle">MENU [=]</button>
 
     <div id="sidebar">
-        <h2>Global Search</h2>
+        <h2>Entity Search</h2>
         <div style="position: relative; margin-bottom: 20px;">
-            <input type="text" id="search-bar" placeholder="Locate Flag Node...">
+            <input type="text" id="search-bar" placeholder="QUERY NODE...">
             <div id="search-results" class="search-results"></div>
         </div>
 
         <h2>Connection Trace</h2>
-        <!-- NEW PATH FINDER UI -->
         <div class="path-box">
             <div style="position: relative;">
-                <div class="input-label">Origin Flag</div>
-                <input type="text" id="path-source" placeholder="Search first flag...">
+                <div class="input-label">Origin Node</div>
+                <input type="text" id="path-source" placeholder="ENTER FIRST NODE...">
                 <div id="path-source-results" class="search-results"></div>
             </div>
             
             <div class="path-divider">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="4" x2="12" y2="20"></line><polyline points="18 14 12 20 6 14"></polyline></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="butt" stroke-linejoin="miter"><line x1="12" y1="4" x2="12" y2="20"></line><polyline points="18 14 12 20 6 14"></polyline></svg>
             </div>
             
             <div style="position: relative;">
-                <div class="input-label">Destination Flag</div>
-                <input type="text" id="path-target" placeholder="Search second flag...">
+                <div class="input-label">Destination Node</div>
+                <input type="text" id="path-target" placeholder="ENTER SECOND NODE...">
                 <div id="path-target-results" class="search-results"></div>
             </div>
             
-            <button id="btn-find-path" class="action-btn">Connect Flags</button>
+            <button id="btn-find-path" class="action-btn">Trace Path</button>
         </div>
         
         <div id="path-info"></div>
 
         <div class="btn-row">
-            <button id="btn-longest-path" class="secondary-btn" title="Find the two furthest connected flags">Max Distance</button>
+            <button id="btn-longest-path" class="secondary-btn" title="Find the graph diameter">Max Vector</button>
             <button id="btn-home" class="secondary-btn">Reset View</button>
         </div>
 
-        <h2>Cultural Topologies</h2>
+        <h2>Network Topologies</h2>
         <div id="community-list"></div>
     </div>
 
     <!-- Required Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
     <script>
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
                          (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 
         const fotwBase = 'https://www.crwflags.com/fotw/';
-
         const COORDINATE_SCALE = 150.0; 
-        const BASE_ALPHA = 0.5; 
+        const BASE_ALPHA = 0.8; // Boosted base opacity for starker data appearance
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x07090F); 
-        scene.fog = new THREE.FogExp2(0x07090F, 0.0000015);
+        // Pitch black, no fog. Pure data.
+        scene.background = new THREE.Color(0x020202); 
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000000);
         camera.position.set(0, 0, 800000); 
 
-        const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: "high-performance" });
+        // Removed the heavy UnrealBloomPass Post-Processing to kill the "neon AI glow"
+        // Pure WebGL rendering is crisper, faster, and perfectly matches the brutalist data theme.
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        
         renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.2) : Math.min(window.devicePixelRatio, 2.0));
         document.body.appendChild(renderer.domElement);
-
-        const renderScene = new THREE.RenderPass(scene, camera);
-        const composer = new THREE.EffectComposer(renderer);
-        composer.addPass(renderScene);
-
-        if (!isMobile) {
-            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.3);
-            composer.addPass(bloomPass);
-        }
 
         let targetX = 0, targetY = 0, targetZ = 800000; 
         let isDragging = false;
@@ -286,35 +258,21 @@
         const startCollapsed = window.innerWidth <= 1024;
         if (startCollapsed) {
             sidebar.classList.remove('active');
-            menuToggle.textContent = '☰ MENU';
-            menuToggle.style.borderColor = '#E2C792';
-            menuToggle.style.color = '#E2C792';
+            menuToggle.textContent = 'MENU [=]';
         } else {
             sidebar.classList.add('active');
-            menuToggle.textContent = '✕ CLOSE';
-            menuToggle.style.borderColor = '#E27474';
-            menuToggle.style.color = '#E27474';
+            menuToggle.textContent = 'CLOSE [X]';
         }
 
         menuToggle.addEventListener('click', () => {
             sidebar.classList.toggle('active');
-            if (sidebar.classList.contains('active')) {
-                menuToggle.textContent = '✕ CLOSE';
-                menuToggle.style.borderColor = '#E27474';
-                menuToggle.style.color = '#E27474';
-            } else {
-                menuToggle.textContent = '☰ MENU';
-                menuToggle.style.borderColor = '#E2C792';
-                menuToggle.style.color = '#E2C792';
-            }
+            menuToggle.textContent = sidebar.classList.contains('active') ? 'CLOSE [X]' : 'MENU [=]';
         });
 
         function closeMenuOnMobile() {
             if (window.innerWidth <= 1024 && sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
-                menuToggle.textContent = '☰ MENU';
-                menuToggle.style.borderColor = '#E2C792';
-                menuToggle.style.color = '#E2C792';
+                menuToggle.textContent = 'MENU [=]';
             }
         }
 
@@ -342,12 +300,14 @@
                 } else { 
                     vAlpha = customAlpha;
                     vec4 mvPosition = modelViewMatrix * vec4(position.x, position.y, 0.0, 1.0);
-                    gl_PointSize = clamp((size * 0.1) * pow(250000.0 / -mvPosition.z, 0.5), 1.0, 12.0); 
+                    // Nodes slightly smaller and sharper
+                    gl_PointSize = clamp((size * 0.12) * pow(250000.0 / -mvPosition.z, 0.5), 2.0, 15.0); 
                     gl_Position = projectionMatrix * mvPosition;
                 }
             }
         `;
         
+        // Crisp, distinct geometry. No glowing "AI" blur.
         const fragmentShader = `
             varying vec3 vColor;
             varying float vAlpha;
@@ -357,9 +317,9 @@
                 float d = distance(gl_PointCoord, vec2(0.5, 0.5));
                 if (d > 0.5) discard;
                 
-                float glow = smoothstep(0.5, 0.1, d); 
-                vec3 finalColor = mix(vColor, vec3(1.0), smoothstep(0.2, 0.0, d) * 0.5);
-                gl_FragColor = vec4(finalColor, vAlpha * glow);
+                // Crisp anti-aliased edge, not a blur. Pure data dot.
+                float alpha = smoothstep(0.5, 0.45, d) * vAlpha;
+                gl_FragColor = vec4(vColor, alpha);
             }
         `;
 
@@ -377,14 +337,14 @@
                     vAlpha = 0.0;
                     gl_Position = vec4(2.0, 2.0, 2.0, 1.0); 
                 } else if (customAlpha > 1.5) { 
-                    vAlpha = 2.0; 
+                    vAlpha = 1.0; 
                     gl_Position = projectionMatrix * mvPosition;
                 } else if (customAlpha > 0.4 && customAlpha < 0.6) { 
-                    vAlpha = 0.05; 
+                    vAlpha = 0.15; // Unfocused community isolation lines
                     gl_Position = projectionMatrix * mvPosition;
                 } else {
-                    float t = smoothstep(60000.0, 250000.0, depth);
-                    vAlpha = mix(0.015, 0.0018, t); 
+                    float t = smoothstep(50000.0, 200000.0, depth);
+                    vAlpha = mix(0.04, 0.005, t); // Sharper baseline lines
                     gl_Position = projectionMatrix * mvPosition;
                 }
             }
@@ -413,7 +373,7 @@
 
                 item.innerHTML = `
                     <div class="community-left">
-                        <span class="community-color" style="background-color: ${hexColor}; box-shadow: 0 0 8px ${hexColor}"></span>
+                        <div class="community-color" style="background-color: ${hexColor};"></div>
                         <span class="community-name" title="${c.name}">${c.name}</span>
                     </div><span class="community-size">${c.size}</span>
                 `;
@@ -559,7 +519,8 @@
             pGeo.setAttribute('pathUv', new THREE.BufferAttribute(uvs, 1));
 
             const pMat = new THREE.ShaderMaterial({
-                uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0xE2C792) } },
+                // Bright white pulsing line for maximum contrast
+                uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0xFFFFFF) } },
                 vertexShader: `
                     attribute float pathUv; varying float vUv;
                     void main() { vUv = pathUv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
@@ -567,8 +528,8 @@
                 fragmentShader: `
                     uniform float uTime; uniform vec3 uColor; varying float vUv;
                     void main() {
-                        float flow = fract(vUv * 6.0 - uTime * 2.5); 
-                        float intensity = smoothstep(0.4, 1.0, flow) * 2.5 + 0.5;
+                        float flow = fract(vUv * 6.0 - uTime * 2.0); 
+                        float intensity = smoothstep(0.3, 1.0, flow) + 0.3; // Stays slightly visible throughout
                         gl_FragColor = vec4(uColor * intensity, 1.0); 
                     }
                 `,
@@ -592,9 +553,9 @@
             for (let i = 0; i < numNodes; i++) {
                 if (pathSet.has(i)) {
                     nodeAlpha.array[i] = 1.0; 
-                    sizeAttr.array[i] = originalSizes[i] * 3.0 + 30.0;
+                    sizeAttr.array[i] = originalSizes[i] * 3.0 + 15.0; // Less exaggerated boost
                 } else {
-                    nodeAlpha.array[i] = 0.0; 
+                    nodeAlpha.array[i] = 0.05; // Fade background nodes heavily
                     sizeAttr.array[i] = originalSizes[i];
                 }
             }
@@ -617,7 +578,7 @@
             const edgeAlpha = linesObject.geometry.attributes.customAlpha;
             
             for (let i = 0; i < numNodes; i++) {
-                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.0; 
+                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.02; 
             }
             
             for (let i = 0; i < dataEdges.length; i++) { 
@@ -655,9 +616,9 @@
             const edgeAlpha = linesObject.geometry.attributes.customAlpha;
 
             for (let i = 0; i < numNodes; i++) {
-                if (i === idx) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = 100.0; } 
-                else if (neighbors.has(i)) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = originalSizes[i] * 3.5; } 
-                else { nodeAlpha.array[i] = 0.0; sizeAttr.array[i] = originalSizes[i]; } 
+                if (i === idx) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = 60.0; } 
+                else if (neighbors.has(i)) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = originalSizes[i] * 2.5; } 
+                else { nodeAlpha.array[i] = 0.02; sizeAttr.array[i] = originalSizes[i]; } 
             }
             nodeAlpha.needsUpdate = true; sizeAttr.needsUpdate = true;
 
@@ -695,18 +656,17 @@
             setupAutocomplete('path-target', 'path-target-results', idx => { pathTargetIdx = idx; document.getElementById('path-target').value = nodeNames[idx]; });
 
             document.getElementById('btn-find-path').addEventListener('click', () => {
-                // UPDATE: Added a friendly error message if they forget to select flags
                 if (pathSourceIdx === -1 || pathTargetIdx === -1) { 
-                    document.getElementById('path-info').textContent = "Please select both flags first!"; 
+                    document.getElementById('path-info').textContent = "ERROR: AWAITING DUAL INPUTS"; 
                     return; 
                 }
                 const path = findShortestPathBidirectional(pathSourceIdx, pathTargetIdx);
                 if (path) {
-                    document.getElementById('path-info').textContent = `Success! Connected in ${path.length - 1} hops.`;
+                    document.getElementById('path-info').textContent = `LINK ESTABLISHED. DELAY: ${path.length - 1} HOPS.`;
                     highlightPath(path);
                     updateURLParams({ source: nodeFiles[pathSourceIdx].replace('.HTML',''), target: nodeFiles[pathTargetIdx].replace('.HTML','') });
                     closeMenuOnMobile(); 
-                } else { document.getElementById('path-info').textContent = `No connection exists.`; }
+                } else { document.getElementById('path-info').textContent = `NO VALID PATH DETECTED.`; }
             });
 
             document.getElementById('btn-longest-path').addEventListener('click', () => {
@@ -714,7 +674,7 @@
                 pathSourceIdx = longestPath[0]; pathTargetIdx = longestPath[longestPath.length-1];
                 document.getElementById('path-source').value = nodeNames[pathSourceIdx];
                 document.getElementById('path-target').value = nodeNames[pathTargetIdx];
-                document.getElementById('path-info').textContent = `Max Distance: ${longestPath.length - 1} Hops`;
+                document.getElementById('path-info').textContent = `MAX GRAPH VECTOR: ${longestPath.length - 1} HOPS`;
                 highlightPath(longestPath);
                 closeMenuOnMobile(); 
             });
@@ -920,7 +880,7 @@
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(window.innerWidth, window.innerHeight); 
         });
 
         function getFlagImageURL(htmlFilename) {
@@ -974,7 +934,7 @@
                         }
                         const imgHTML = `<img src="${safeImg}" onerror="this.style.display='none'">`;
                         
-                        tooltip.innerHTML = `${imgHTML}${nodeNames[idx]}<span>File: ${nodeFiles[idx]}</span><em>Right-click (or tap twice) to open Encyclopedia</em>`;
+                        tooltip.innerHTML = `${imgHTML}${nodeNames[idx]}<span>FILE: ${nodeFiles[idx]}</span><em>[R-CLICK / DOUBLE-TAP TO VIEW]</em>`;
                     }
                 } else {
                     tooltip.style.display = 'none';
@@ -987,18 +947,14 @@
                 tooltipTargetX = mouseClientX + 20;
                 tooltipTargetY = mouseClientY + 20;
                 
-                tooltipCurrentX += (tooltipTargetX - tooltipCurrentX) * 0.2;
-                tooltipCurrentY += (tooltipTargetY - tooltipCurrentY) * 0.2;
+                tooltipCurrentX += (tooltipTargetX - tooltipCurrentX) * 0.3;
+                tooltipCurrentY += (tooltipTargetY - tooltipCurrentY) * 0.3;
                 
                 tooltip.style.left = tooltipCurrentX + 'px'; 
                 tooltip.style.top = tooltipCurrentY + 'px';
             }
 
-            if (isMobile) {
-                renderer.render(scene, camera);
-            } else {
-                composer.render();
-            }
+            renderer.render(scene, camera);
         }
         animate();
 

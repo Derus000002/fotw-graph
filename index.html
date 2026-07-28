@@ -67,15 +67,61 @@
         .search-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .search-item:hover { background: rgba(255,255,255,0.08); color: var(--accent); }
 
-        .btn-row { display: flex; gap: 8px; margin-bottom: 12px; }
-        button {
+        /* --- NEW UX COMPONENTS FOR PATH FINDER --- */
+        .path-box {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+        .input-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            margin-left: 2px;
+        }
+        .path-divider {
+            display: flex;
+            justify-content: center;
+            color: var(--border-color);
+            margin: 0px 0 8px 0;
+        }
+        .action-btn {
+            width: 100%;
+            background: rgba(226, 199, 146, 0.08); 
+            border: 1px solid rgba(226, 199, 146, 0.3);
+            color: var(--accent);
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover {
+            background: rgba(226, 199, 146, 0.15);
+            border-color: var(--accent);
+            color: var(--accent-hover);
+            box-shadow: 0 0 12px rgba(226, 199, 146, 0.2);
+        }
+
+        .btn-row { display: flex; gap: 8px; margin-bottom: 16px; }
+        .secondary-btn {
             flex: 1; padding: 10px; background: rgba(255,255,255,0.05); 
             border: 1px solid var(--border-color); color: var(--text-main); 
             cursor: pointer; border-radius: 6px; font-size: 11px; 
             font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: 0.5px;
             text-transform: uppercase; transition: all 0.2s;
         }
-        button:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); color: var(--accent-hover); }
+        .secondary-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); color: var(--accent-hover); }
         
         #path-info { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); text-align: center; margin-bottom: 16px; min-height: 15px; }
 
@@ -130,29 +176,39 @@
 
     <div id="sidebar">
         <h2>Global Search</h2>
-        <div style="position: relative; margin-bottom: 15px;">
+        <div style="position: relative; margin-bottom: 20px;">
             <input type="text" id="search-bar" placeholder="Locate Flag Node...">
             <div id="search-results" class="search-results"></div>
         </div>
 
-        <h2>Data Path Finder</h2>
-        <div style="position: relative;">
-            <input type="text" id="path-source" placeholder="Source Node...">
-            <div id="path-source-results" class="search-results"></div>
-        </div>
-        <div style="position: relative;">
-            <input type="text" id="path-target" placeholder="Target Node...">
-            <div id="path-target-results" class="search-results"></div>
+        <h2>Connection Trace</h2>
+        <!-- NEW PATH FINDER UI -->
+        <div class="path-box">
+            <div style="position: relative;">
+                <div class="input-label">Origin Flag</div>
+                <input type="text" id="path-source" placeholder="Search first flag...">
+                <div id="path-source-results" class="search-results"></div>
+            </div>
+            
+            <div class="path-divider">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="4" x2="12" y2="20"></line><polyline points="18 14 12 20 6 14"></polyline></svg>
+            </div>
+            
+            <div style="position: relative;">
+                <div class="input-label">Destination Flag</div>
+                <input type="text" id="path-target" placeholder="Search second flag...">
+                <div id="path-target-results" class="search-results"></div>
+            </div>
+            
+            <button id="btn-find-path" class="action-btn">Connect Flags</button>
         </div>
         
-        <div class="btn-row">
-            <button id="btn-find-path">Initiate Trace</button>
-            <button id="btn-longest-path">Graph Diameter</button>
-        </div>
-        <div class="btn-row">
-            <button id="btn-home">Reset & Home</button>
-        </div>
         <div id="path-info"></div>
+
+        <div class="btn-row">
+            <button id="btn-longest-path" class="secondary-btn" title="Find the two furthest connected flags">Max Distance</button>
+            <button id="btn-home" class="secondary-btn">Reset View</button>
+        </div>
 
         <h2>Cultural Topologies</h2>
         <div id="community-list"></div>
@@ -177,7 +233,6 @@
         const BASE_ALPHA = 0.5; 
 
         const scene = new THREE.Scene();
-        // UPGRADE: Deep slate space background and distance fog
         scene.background = new THREE.Color(0x07090F); 
         scene.fog = new THREE.FogExp2(0x07090F, 0.0000015);
 
@@ -194,7 +249,6 @@
         const composer = new THREE.EffectComposer(renderer);
         composer.addPass(renderScene);
 
-        // UPGRADE: Refined, elegant bloom pass
         if (!isMobile) {
             const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.3);
             composer.addPass(bloomPass);
@@ -220,7 +274,6 @@
         let adjListOut = [], adjListIn = [], longestPath = [], dataEdges = [];
         let isolatedNodeIdx = -1;
 
-        // Tooltip Smoothing Variables
         let currentHoveredIdx = -1; 
         const tooltip = document.getElementById('tooltip');
         let raycastFrameThrottle = 0; 
@@ -295,7 +348,6 @@
             }
         `;
         
-        // UPGRADE: Organic node visualizer
         const fragmentShader = `
             varying vec3 vColor;
             varying float vAlpha;
@@ -305,12 +357,8 @@
                 float d = distance(gl_PointCoord, vec2(0.5, 0.5));
                 if (d > 0.5) discard;
                 
-                // Create a soft, organic blur (like a star)
                 float glow = smoothstep(0.5, 0.1, d); 
-                
-                // Boost the core brightness slightly
                 vec3 finalColor = mix(vColor, vec3(1.0), smoothstep(0.2, 0.0, d) * 0.5);
-                
                 gl_FragColor = vec4(finalColor, vAlpha * glow);
             }
         `;
@@ -511,7 +559,6 @@
             pGeo.setAttribute('pathUv', new THREE.BufferAttribute(uvs, 1));
 
             const pMat = new THREE.ShaderMaterial({
-                // UPGRADE: Changed neon cyan to Starlight Gold for paths
                 uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0xE2C792) } },
                 vertexShader: `
                     attribute float pathUv; varying float vUv;
@@ -648,10 +695,14 @@
             setupAutocomplete('path-target', 'path-target-results', idx => { pathTargetIdx = idx; document.getElementById('path-target').value = nodeNames[idx]; });
 
             document.getElementById('btn-find-path').addEventListener('click', () => {
-                if (pathSourceIdx === -1 || pathTargetIdx === -1) { document.getElementById('path-info').textContent = "Select nodes!"; return; }
+                // UPDATE: Added a friendly error message if they forget to select flags
+                if (pathSourceIdx === -1 || pathTargetIdx === -1) { 
+                    document.getElementById('path-info').textContent = "Please select both flags first!"; 
+                    return; 
+                }
                 const path = findShortestPathBidirectional(pathSourceIdx, pathTargetIdx);
                 if (path) {
-                    document.getElementById('path-info').textContent = `Success! ${path.length - 1} Data Hops`;
+                    document.getElementById('path-info').textContent = `Success! Connected in ${path.length - 1} hops.`;
                     highlightPath(path);
                     updateURLParams({ source: nodeFiles[pathSourceIdx].replace('.HTML',''), target: nodeFiles[pathTargetIdx].replace('.HTML','') });
                     closeMenuOnMobile(); 
@@ -663,7 +714,7 @@
                 pathSourceIdx = longestPath[0]; pathTargetIdx = longestPath[longestPath.length-1];
                 document.getElementById('path-source').value = nodeNames[pathSourceIdx];
                 document.getElementById('path-target').value = nodeNames[pathTargetIdx];
-                document.getElementById('path-info').textContent = `Diameter Extracted: ${longestPath.length - 1} Hops`;
+                document.getElementById('path-info').textContent = `Max Distance: ${longestPath.length - 1} Hops`;
                 highlightPath(longestPath);
                 closeMenuOnMobile(); 
             });
@@ -912,7 +963,6 @@
                     if (currentHoveredIdx !== idx) {
                         currentHoveredIdx = idx;
                         
-                        // Instantly snap on first hover to avoid flying UI
                         tooltipCurrentX = mouseClientX + 20;
                         tooltipCurrentY = mouseClientY + 20;
                         
@@ -933,7 +983,6 @@
                 mouseNeedsUpdate = false; 
             }
             
-            // UPGRADE: Smooth lerped tooltip tracking independent of raycast framerate
             if (currentHoveredIdx !== -1) {
                 tooltipTargetX = mouseClientX + 20;
                 tooltipTargetY = mouseClientY + 20;

@@ -2,129 +2,123 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- MOBILE FIX 1: Viewport meta tag to prevent forced zooming on touch devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FOTW Cosmic Network</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; user-select: none; }
-        canvas { display: block; touch-action: none; } /* touch-action: none prevents pull-to-refresh on mobile */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400&display=swap');
+
+        :root {
+            --bg-color: #07090F;
+            --panel-bg: rgba(15, 18, 25, 0.75);
+            --accent: #E2C792; /* Starlight Gold */
+            --accent-hover: #F2DDB0;
+            --text-main: #E2E8F0;
+            --text-muted: #94A3B8;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body { margin: 0; overflow: hidden; background-color: var(--bg-color); user-select: none; font-family: 'Inter', sans-serif; color: var(--text-main); }
+        canvas { display: block; touch-action: none; }
         
-        #loading { position: absolute; top: 50%; width: 100%; text-align: center; color: #00ffcc; font-family: monospace; font-size: 24px; text-shadow: 0 0 10px #00ffcc; pointer-events: none; z-index: 100;}
+        #loading { 
+            position: absolute; top: 50%; width: 100%; text-align: center; 
+            color: var(--accent); font-family: 'JetBrains Mono', monospace; 
+            font-size: 18px; font-weight: 300; letter-spacing: 2px;
+            pointer-events: none; z-index: 100;
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
         
-        /* UNIVERSAL COLLAPSIBLE SIDEBAR STYLE (Fits all device types) */
         #sidebar {
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 320px; 
-            height: 100vh;
-            max-height: 100vh;
-            background: rgba(10, 10, 10, 0.9); 
-            color: #fff; 
-            font-family: sans-serif; 
-            padding: 20px;
-            box-shadow: 5px 0 25px rgba(0,0,0,0.9); 
-            border-right: 1px solid #333;
-            display: flex; 
-            flex-direction: column; 
-            z-index: 10; 
-            backdrop-filter: blur(5px);
-            box-sizing: border-box;
-            overflow-y: auto;
-
-            /* Collapsed by default, fully hidden from calculations */
-            transform: translateX(-100%);
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, visibility 0.3s;
+            position: absolute; top: 0; left: 0; width: 340px; height: 100vh;
+            background: var(--panel-bg); 
+            padding: 24px;
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; z-index: 10; 
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            box-sizing: border-box; overflow-y: auto;
+            transform: translateX(-100%); opacity: 0; visibility: hidden; pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* Active Class (Triggered via JS) */
-        #sidebar.active {
-            transform: translateX(0); /* Slide in smoothly */
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
+        #sidebar.active { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
+        
+        #sidebar h2 { 
+            font-size: 11px; margin: 0 0 12px 0; border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1.5px; 
+            color: var(--text-muted); font-weight: 600; 
         }
         
-        #sidebar h2 { font-size: 15px; margin: 0 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; color: #eee; }
-        
-        input { width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; font-size: 13px; margin-bottom: 5px; }
-        input:focus { outline: none; border-color: #00ffcc; box-shadow: 0 0 8px rgba(0,255,204,0.3); }
+        input { 
+            width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); 
+            border: 1px solid var(--border-color); color: white; 
+            border-radius: 6px; box-sizing: border-box; font-size: 13px; 
+            font-family: 'Inter', sans-serif; margin-bottom: 8px; transition: all 0.2s;
+        }
+        input:focus { outline: none; border-color: var(--accent); background: rgba(0,0,0,0.5); }
         
         .search-results {
-            position: absolute; top: 38px; left: 0; width: 100%; background: #111; border: 1px solid #444;
-            border-radius: 4px; max-height: 150px; overflow-y: auto; display: none; z-index: 15;
+            position: absolute; top: 42px; left: 0; width: 100%; 
+            background: rgba(15, 18, 25, 0.95); border: 1px solid var(--border-color);
+            border-radius: 6px; max-height: 180px; overflow-y: auto; display: none; z-index: 15;
+            backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .search-item { padding: 8px 12px; cursor: pointer; font-size: 12px; }
-        .search-item:hover { background: #333; color: #00ffcc; }
+        .search-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .search-item:hover { background: rgba(255,255,255,0.08); color: var(--accent); }
 
-        .btn-row { display: flex; gap: 5px; margin-bottom: 10px; }
+        .btn-row { display: flex; gap: 8px; margin-bottom: 12px; }
         button {
-            flex: 1; padding: 8px; background: #222; border: 1px solid #555; color: white; cursor: pointer;
-            border-radius: 4px; font-size: 11px; text-transform: uppercase; transition: all 0.2s;
+            flex: 1; padding: 10px; background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--border-color); color: var(--text-main); 
+            cursor: pointer; border-radius: 6px; font-size: 11px; 
+            font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: 0.5px;
+            text-transform: uppercase; transition: all 0.2s;
         }
-        button:hover { background: #444; border-color: #00ffcc; }
+        button:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); color: var(--accent-hover); }
         
-        #path-info { font-size: 12px; color: #00ffcc; text-align: center; margin-bottom: 10px; min-height: 15px; font-weight: bold; }
+        #path-info { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); text-align: center; margin-bottom: 16px; min-height: 15px; }
 
         #community-list { overflow-y: auto; flex-grow: 1; padding-right: 5px; }
         #community-list::-webkit-scrollbar { width: 4px; }
-        #community-list::-webkit-scrollbar-thumb { background: #555; border-radius: 2px; }
+        #community-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
         
         .community-item {
-            padding: 6px 8px; margin-bottom: 5px; border-radius: 4px; cursor: pointer;
-            font-size: 11px; display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 10px; margin-bottom: 4px; border-radius: 6px; cursor: pointer;
+            font-size: 12px; display: flex; align-items: center; justify-content: space-between;
+            transition: background 0.2s;
         }
-        .community-item:hover { background: rgba(255,255,255,0.1); }
+        .community-item:hover { background: rgba(255,255,255,0.08); }
         .community-left { display: flex; align-items: center; flex: 1; min-width: 0; }
-        .community-color { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; box-shadow: 0 0 5px currentColor; }
-        .community-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-        .community-size { font-size: 10px; color: #888; margin-left: 8px; }
+        .community-color { width: 10px; height: 10px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; }
+        .community-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 300; }
+        .community-size { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-left: 8px; }
 
         #tooltip { 
-            position: absolute; display: none; background: rgba(5, 5, 5, 0.95); color: #fff; 
-            padding: 10px; border-radius: 4px; font-family: sans-serif; font-size: 14px; 
-            pointer-events: none; border: 1px solid #444; box-shadow: 0 0 20px rgba(0,255,204,0.1); z-index: 20; max-width: 250px;
+            position: absolute; display: none; background: rgba(10, 12, 16, 0.85); 
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            color: var(--text-main); padding: 12px; border-radius: 8px; 
+            font-size: 13px; pointer-events: none; border: 1px solid var(--border-color); 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 20; max-width: 260px;
         }
-        #tooltip img { max-width: 100%; height: auto; max-height: 140px; display: block; margin-bottom: 8px; border-radius: 2px; box-shadow: 0 0 5px rgba(255,255,255,0.2); }
-        #tooltip span { display: block; font-size: 11px; color: #aaa; margin-top: 4px; }
-        #tooltip em { display: block; font-size: 10px; color: #00ffcc; margin-top: 6px; font-style: normal; }
+        #tooltip img { max-width: 100%; height: auto; max-height: 140px; display: block; margin-bottom: 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); }
+        #tooltip span { display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+        #tooltip em { display: block; font-size: 10px; color: var(--accent); margin-top: 8px; font-style: normal; opacity: 0.8; }
 
-        /* Floating Menu Toggle Button (ALWAYS active, visible on all monitors and touchscreens) */
         #menu-toggle {
-            display: block; 
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(10, 10, 10, 0.9);
-            color: #00ffcc;
-            border: 1px solid #00ffcc;
-            border-radius: 4px;
-            padding: 10px 16px;
-            font-family: sans-serif;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            cursor: pointer;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
-            transition: all 0.2s ease;
+            position: absolute; top: 20px; right: 20px; z-index: 100;
+            background: rgba(15, 18, 25, 0.7); backdrop-filter: blur(10px);
+            color: var(--text-main); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 10px 16px; font-size: 11px; font-weight: 600; letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            cursor: pointer; transition: all 0.2s;
         }
-        #menu-toggle:hover {
-            background: rgba(0, 255, 204, 0.1);
-        }
+        #menu-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
-        /* MOBILE & TABLET STYLING OVERRIDES */
         @media (max-width: 768px) {
-            #sidebar {
-                width: 280px; /* Slightly narrower drawer for vertical phone ports */
-                padding: 15px; 
-            }
+            #sidebar { width: 300px; padding: 20px; }
             #tooltip { max-width: 200px; font-size: 12px; }
-            #tooltip img { max-height: 90px; }
+            #tooltip img { max-height: 100px; }
         }
     </style>
 </head>
@@ -132,7 +126,6 @@
     <div id="loading">Connecting to Galaxy...</div>
     <div id="tooltip"></div>
     
-    <!-- Floating toggle trigger -->
     <button id="menu-toggle">☰ MENU</button>
 
     <div id="sidebar">
@@ -175,25 +168,25 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
     <script>
-        // Check for touch screens / mobile users to apply performance hacks
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
                          (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 
-        // USE THE ACTUAL FOTW SITE: Point all dynamic requests to the live online CRW Flags mirror
         const fotwBase = 'https://www.crwflags.com/fotw/';
 
         const COORDINATE_SCALE = 150.0; 
         const BASE_ALPHA = 0.5; 
 
         const scene = new THREE.Scene();
+        // UPGRADE: Deep slate space background and distance fog
+        scene.background = new THREE.Color(0x07090F); 
+        scene.fog = new THREE.FogExp2(0x07090F, 0.0000015);
+
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000000);
         camera.position.set(0, 0, 800000); 
 
-        // PERFORMANCE FIX 1: Turn off heavy antialiasing on mobile
         const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         
-        // PERFORMANCE FIX 2: Limit device pixel ratio on mobile to save GPU fill rate
         renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.2) : Math.min(window.devicePixelRatio, 2.0));
         document.body.appendChild(renderer.domElement);
 
@@ -201,12 +194,9 @@
         const composer = new THREE.EffectComposer(renderer);
         composer.addPass(renderScene);
 
-        // PERFORMANCE FIX 3: Completely skip post-processing / Bloom on mobile
+        // UPGRADE: Refined, elegant bloom pass
         if (!isMobile) {
-            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.2;
-            bloomPass.strength = 0.35;
-            bloomPass.radius = 0.2;
+            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.3);
             composer.addPass(bloomPass);
         }
 
@@ -214,12 +204,12 @@
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
         let mouseMovedDuringClick = false; 
-        let initialPinchDistance = null; // Mobile zoom state
+        let initialPinchDistance = null; 
 
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let mouseClientX = 0, mouseClientY = 0;
-        let mouseNeedsUpdate = false; // Only raycast when coordinates change or camera moves
+        let mouseNeedsUpdate = false; 
         
         let numNodes = 0;
         let positions, colors, originalSizes;
@@ -230,46 +220,48 @@
         let adjListOut = [], adjListIn = [], longestPath = [], dataEdges = [];
         let isolatedNodeIdx = -1;
 
-        // UI Drawer Toggle Elements
+        // Tooltip Smoothing Variables
+        let currentHoveredIdx = -1; 
+        const tooltip = document.getElementById('tooltip');
+        let raycastFrameThrottle = 0; 
+        let tooltipTargetX = 0, tooltipTargetY = 0;
+        let tooltipCurrentX = 0, tooltipCurrentY = 0;
+
         const menuToggle = document.getElementById('menu-toggle');
         const sidebar = document.getElementById('sidebar');
 
-        // UNIVERSAL DRAWER STATE INITIALIZATION
-        // Starts collapsed on devices under 1024px width, open on larger desktop screens
         const startCollapsed = window.innerWidth <= 1024;
         if (startCollapsed) {
             sidebar.classList.remove('active');
             menuToggle.textContent = '☰ MENU';
-            menuToggle.style.borderColor = '#00ffcc';
-            menuToggle.style.color = '#00ffcc';
+            menuToggle.style.borderColor = '#E2C792';
+            menuToggle.style.color = '#E2C792';
         } else {
             sidebar.classList.add('active');
             menuToggle.textContent = '✕ CLOSE';
-            menuToggle.style.borderColor = '#ff4444';
-            menuToggle.style.color = '#ff4444';
+            menuToggle.style.borderColor = '#E27474';
+            menuToggle.style.color = '#E27474';
         }
 
-        // Toggle drawer event handler (Universal)
         menuToggle.addEventListener('click', () => {
             sidebar.classList.toggle('active');
             if (sidebar.classList.contains('active')) {
                 menuToggle.textContent = '✕ CLOSE';
-                menuToggle.style.borderColor = '#ff4444';
-                menuToggle.style.color = '#ff4444';
+                menuToggle.style.borderColor = '#E27474';
+                menuToggle.style.color = '#E27474';
             } else {
                 menuToggle.textContent = '☰ MENU';
-                menuToggle.style.borderColor = '#00ffcc';
-                menuToggle.style.color = '#00ffcc';
+                menuToggle.style.borderColor = '#E2C792';
+                menuToggle.style.color = '#E2C792';
             }
         });
 
-        // Auto-close menu drawer when an action triggers on devices <= 1024px width
         function closeMenuOnMobile() {
             if (window.innerWidth <= 1024 && sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
                 menuToggle.textContent = '☰ MENU';
-                menuToggle.style.borderColor = '#00ffcc';
-                menuToggle.style.color = '#00ffcc';
+                menuToggle.style.borderColor = '#E2C792';
+                menuToggle.style.color = '#E2C792';
             }
         }
 
@@ -302,13 +294,24 @@
                 }
             }
         `;
+        
+        // UPGRADE: Organic node visualizer
         const fragmentShader = `
             varying vec3 vColor;
             varying float vAlpha;
             void main() {
                 if (vAlpha < 0.02) discard; 
-                if (distance(gl_PointCoord, vec2(0.5, 0.5)) > 0.5) discard;
-                gl_FragColor = vec4(vColor, vAlpha);
+                
+                float d = distance(gl_PointCoord, vec2(0.5, 0.5));
+                if (d > 0.5) discard;
+                
+                // Create a soft, organic blur (like a star)
+                float glow = smoothstep(0.5, 0.1, d); 
+                
+                // Boost the core brightness slightly
+                vec3 finalColor = mix(vColor, vec3(1.0), smoothstep(0.2, 0.0, d) * 0.5);
+                
+                gl_FragColor = vec4(finalColor, vAlpha * glow);
             }
         `;
 
@@ -362,7 +365,7 @@
 
                 item.innerHTML = `
                     <div class="community-left">
-                        <span class="community-color" style="background-color: ${hexColor}; color: ${hexColor}"></span>
+                        <span class="community-color" style="background-color: ${hexColor}; box-shadow: 0 0 8px ${hexColor}"></span>
                         <span class="community-name" title="${c.name}">${c.name}</span>
                     </div><span class="community-size">${c.size}</span>
                 `;
@@ -376,7 +379,7 @@
                         if (nodeCommunities[i] === c.id) { sX += positions[i*3]; sY += positions[i*3+1]; cCount++; }
                     }
                     if (cCount > 0) { targetX = sX/cCount; targetY = sY/cCount; targetZ = 30000; }
-                    closeMenuOnMobile(); // Automatically hide panel to show selected community coordinates
+                    closeMenuOnMobile(); 
                 });
                 listContainer.appendChild(item);
             });
@@ -508,7 +511,8 @@
             pGeo.setAttribute('pathUv', new THREE.BufferAttribute(uvs, 1));
 
             const pMat = new THREE.ShaderMaterial({
-                uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0x00ffcc) } },
+                // UPGRADE: Changed neon cyan to Starlight Gold for paths
+                uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0xE2C792) } },
                 vertexShader: `
                     attribute float pathUv; varying float vUv;
                     void main() { vUv = pathUv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
@@ -650,7 +654,7 @@
                     document.getElementById('path-info').textContent = `Success! ${path.length - 1} Data Hops`;
                     highlightPath(path);
                     updateURLParams({ source: nodeFiles[pathSourceIdx].replace('.HTML',''), target: nodeFiles[pathTargetIdx].replace('.HTML','') });
-                    closeMenuOnMobile(); // Automatically hide panel to show traced path
+                    closeMenuOnMobile(); 
                 } else { document.getElementById('path-info').textContent = `No connection exists.`; }
             });
 
@@ -661,7 +665,7 @@
                 document.getElementById('path-target').value = nodeNames[pathTargetIdx];
                 document.getElementById('path-info').textContent = `Diameter Extracted: ${longestPath.length - 1} Hops`;
                 highlightPath(longestPath);
-                closeMenuOnMobile(); // Automatically hide panel to show longest path
+                closeMenuOnMobile(); 
             });
 
             document.getElementById('btn-home').addEventListener('click', () => {
@@ -669,7 +673,7 @@
                 document.getElementById('path-source').value = ""; document.getElementById('path-target').value = ""; document.getElementById('search-bar').value = "";
                 pathSourceIdx = -1; pathTargetIdx = -1;
                 updateURLParams({ source: null, target: null, isolate: null });
-                closeMenuOnMobile(); // Automatically hide panel on reset
+                closeMenuOnMobile(); 
             });
         }
 
@@ -723,7 +727,7 @@
                         d.addEventListener('click', () => { 
                             onSelect(m.i); 
                             res.style.display = 'none'; 
-                            closeMenuOnMobile(); // Automatically hide panel when user picks a search result
+                            closeMenuOnMobile(); 
                         });
                         res.appendChild(d);
                     });
@@ -750,12 +754,11 @@
             }
         }
 
-        // --- STANDARD MOUSE EVENTS ---
         window.addEventListener('mousedown', e => { if(!e.target.closest('#sidebar') && !e.target.closest('#tooltip')) { isDragging = true; mouseMovedDuringClick = false; previousMousePosition = { x: e.clientX, y: e.clientY }; }});
         window.addEventListener('mousemove', e => {
             mouseClientX = e.clientX; mouseClientY = e.clientY;
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            mouseNeedsUpdate = true; // Flag coordinate change
+            mouseNeedsUpdate = true; 
             if (isDragging) {
                 const dx = e.clientX - previousMousePosition.x, dy = e.clientY - previousMousePosition.y;
                 if (Math.abs(dx)>3 || Math.abs(dy)>3) mouseMovedDuringClick = true;
@@ -770,7 +773,6 @@
             targetZ = Math.max(150, Math.min(targetZ, 100000000));
         });
 
-        // --- MOBILE TOUCH EVENTS (Drag Pan + Pinch Zoom) ---
         window.addEventListener('touchstart', e => {
             if (e.target.closest('#sidebar')) return;
             
@@ -828,7 +830,6 @@
             initialPinchDistance = null; 
         });
 
-        // --- CLICK EVENT + MOBILE ENCYCLOPEDIA ACCESS ---
         window.addEventListener('click', e => {
             if (e.target.closest('#sidebar') || e.target.closest('#tooltip') || mouseMovedDuringClick) return;
             raycaster.setFromCamera(mouse, camera);
@@ -851,7 +852,6 @@
             else { resetIsolation(); updateURLParams({ isolate: null }); }
         });
 
-        // Desktop Right-Click
         window.addEventListener('contextmenu', e => {
             if(e.target.closest('#sidebar')) return; e.preventDefault();
             raycaster.setFromCamera(mouse, camera);
@@ -879,14 +879,9 @@
             return fotwBase + 'images/' + firstLetter + '/' + name + '.gif';
         }
 
-        let currentHoveredIdx = -1; 
-        const tooltip = document.getElementById('tooltip');
-        let raycastFrameThrottle = 0; // Performance optimization counter
-
         function animate() {
             requestAnimationFrame(animate);
             
-            // Calculate if the camera is actively sliding/panning
             const cameraMoving = Math.abs(targetX - camera.position.x) > 5 || 
                                  Math.abs(targetY - camera.position.y) > 5 || 
                                  Math.abs(targetZ - camera.position.z) > 10;
@@ -899,9 +894,8 @@
 
             raycastFrameThrottle++;
 
-            // Only run raycasting when something moves, and run it far less frequently on mobile devices
             const shouldRaycast = mouseNeedsUpdate || cameraMoving;
-            const throttleInterval = isMobile ? 8 : 2; // Raycast every 8 frames on mobile, 2 frames on desktop
+            const throttleInterval = isMobile ? 8 : 2; 
 
             if (pointsObject && !isDragging && shouldRaycast && (raycastFrameThrottle % throttleInterval === 0)) {
                 raycaster.setFromCamera(mouse, camera);
@@ -914,11 +908,13 @@
                 if (inters.length > 0) {
                     const idx = inters[0].index;
                     tooltip.style.display = 'block'; 
-                    tooltip.style.left = (mouseClientX + 15) + 'px'; 
-                    tooltip.style.top = (mouseClientY + 15) + 'px';
                     
                     if (currentHoveredIdx !== idx) {
                         currentHoveredIdx = idx;
+                        
+                        // Instantly snap on first hover to avoid flying UI
+                        tooltipCurrentX = mouseClientX + 20;
+                        tooltipCurrentY = mouseClientY + 20;
                         
                         let safeImg = "";
                         if (nodeImages[idx] && nodeImages[idx] !== "") {
@@ -934,16 +930,21 @@
                     tooltip.style.display = 'none';
                     currentHoveredIdx = -1; 
                 }
-                mouseNeedsUpdate = false; // Reset the movement trigger
-            } else if (!shouldRaycast && !isDragging) {
-                // Smooth tooltip tracking when camera drifts to a stop
-                if (currentHoveredIdx !== -1) {
-                    tooltip.style.left = (mouseClientX + 15) + 'px'; 
-                    tooltip.style.top = (mouseClientY + 15) + 'px';
-                }
+                mouseNeedsUpdate = false; 
+            }
+            
+            // UPGRADE: Smooth lerped tooltip tracking independent of raycast framerate
+            if (currentHoveredIdx !== -1) {
+                tooltipTargetX = mouseClientX + 20;
+                tooltipTargetY = mouseClientY + 20;
+                
+                tooltipCurrentX += (tooltipTargetX - tooltipCurrentX) * 0.2;
+                tooltipCurrentY += (tooltipTargetY - tooltipCurrentY) * 0.2;
+                
+                tooltip.style.left = tooltipCurrentX + 'px'; 
+                tooltip.style.top = tooltipCurrentY + 'px';
             }
 
-            // PERFORMANCE FIX 4: Render directly on mobile instead of going through the postprocessing composer
             if (isMobile) {
                 renderer.render(scene, camera);
             } else {

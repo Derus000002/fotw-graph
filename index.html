@@ -5,18 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FOTW Data Terminal</title>
     <style>
-        /* A completely distinct, professional, data-centric typeface */
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap');
 
         :root {
-            /* Brutalist / Data-Terminal Palette */
             --bg-color: #050505;
             --panel-bg: #0f0f0f;
             --border-color: #333333;
             --text-main: #f0f0f0;
             --text-muted: #7a7a7a;
-            --accent: #FF3B30; /* Signal Red */
-            --accent-dim: rgba(255, 59, 48, 0.1);
+            --accent: #FF3B30; 
             --active-path: #FFFFFF; 
         }
 
@@ -59,7 +56,7 @@
         input { 
             width: 100%; padding: 10px; background: #000; 
             border: 1px solid var(--border-color); color: var(--text-main); 
-            border-radius: 0; /* Brutalist sharp edges */
+            border-radius: 0; 
             box-sizing: border-box; font-size: 13px; 
             font-family: 'IBM Plex Mono', monospace; margin-bottom: 8px; 
             transition: border-color 0.1s;
@@ -70,12 +67,11 @@
             position: absolute; top: 40px; left: 0; width: 100%; 
             background: #000; border: 1px solid var(--border-color); border-top: none;
             max-height: 200px; overflow-y: auto; display: none; z-index: 15;
-            box-shadow: 10px 10px 0px rgba(0,0,0,0.5); /* Hard shadow, not soft blur */
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.5); 
         }
         .search-item { padding: 10px; cursor: pointer; font-size: 12px; font-family: 'IBM Plex Mono', monospace; border-bottom: 1px solid #1a1a1a; }
         .search-item:hover { background: var(--text-main); color: #000; }
 
-        /* Pathfinder technical box */
         .path-box {
             background: #000;
             border: 1px solid var(--border-color);
@@ -210,17 +206,14 @@
 
         const fotwBase = 'https://www.crwflags.com/fotw/';
         const COORDINATE_SCALE = 150.0; 
-        const BASE_ALPHA = 0.8; // Boosted base opacity for starker data appearance
+        const BASE_ALPHA = 0.8; 
 
         const scene = new THREE.Scene();
-        // Pitch black, no fog. Pure data.
         scene.background = new THREE.Color(0x020202); 
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000000);
         camera.position.set(0, 0, 800000); 
 
-        // Removed the heavy UnrealBloomPass Post-Processing to kill the "neon AI glow"
-        // Pure WebGL rendering is crisper, faster, and perfectly matches the brutalist data theme.
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.2) : Math.min(window.devicePixelRatio, 2.0));
@@ -285,6 +278,8 @@
             window.history.pushState({}, '', url);
         }
 
+        // BUGFIX: Increased threshold to < 0.1 to prevent floating point errors from 
+        // bypassing the discard logic, which caused the "flashing" on zoom.
         const vertexShader = `
             attribute float size;
             attribute vec3 customColor;
@@ -293,31 +288,28 @@
             varying float vAlpha;
             void main() {
                 vColor = customColor;
-                if (customAlpha < 0.02) { 
+                if (customAlpha < 0.1) { 
                     vAlpha = 0.0;
                     gl_PointSize = 0.0;
                     gl_Position = vec4(2.0, 2.0, 2.0, 1.0); 
                 } else { 
                     vAlpha = customAlpha;
                     vec4 mvPosition = modelViewMatrix * vec4(position.x, position.y, 0.0, 1.0);
-                    // Nodes slightly smaller and sharper
                     gl_PointSize = clamp((size * 0.12) * pow(250000.0 / -mvPosition.z, 0.5), 2.0, 15.0); 
                     gl_Position = projectionMatrix * mvPosition;
                 }
             }
         `;
         
-        // Crisp, distinct geometry. No glowing "AI" blur.
         const fragmentShader = `
             varying vec3 vColor;
             varying float vAlpha;
             void main() {
-                if (vAlpha < 0.02) discard; 
+                if (vAlpha < 0.1) discard; 
                 
                 float d = distance(gl_PointCoord, vec2(0.5, 0.5));
                 if (d > 0.5) discard;
                 
-                // Crisp anti-aliased edge, not a blur. Pure data dot.
                 float alpha = smoothstep(0.5, 0.45, d) * vAlpha;
                 gl_FragColor = vec4(vColor, alpha);
             }
@@ -333,18 +325,18 @@
                 vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                 float depth = -mvPosition.z; 
                 
-                if (customAlpha < 0.02) {
+                if (customAlpha < 0.1) {
                     vAlpha = 0.0;
                     gl_Position = vec4(2.0, 2.0, 2.0, 1.0); 
                 } else if (customAlpha > 1.5) { 
                     vAlpha = 1.0; 
                     gl_Position = projectionMatrix * mvPosition;
                 } else if (customAlpha > 0.4 && customAlpha < 0.6) { 
-                    vAlpha = 0.15; // Unfocused community isolation lines
+                    vAlpha = 0.15; 
                     gl_Position = projectionMatrix * mvPosition;
                 } else {
                     float t = smoothstep(50000.0, 200000.0, depth);
-                    vAlpha = mix(0.04, 0.005, t); // Sharper baseline lines
+                    vAlpha = mix(0.04, 0.005, t); 
                     gl_Position = projectionMatrix * mvPosition;
                 }
             }
@@ -354,7 +346,7 @@
             varying vec3 vColor;
             varying float vAlpha;
             void main() { 
-                if (vAlpha < 0.001) discard; 
+                if (vAlpha < 0.1) discard; 
                 gl_FragColor = vec4(vColor, vAlpha); 
             }
         `;
@@ -456,6 +448,16 @@
             checkURLParamsOnLoad();
         });
 
+        // BUGFIX: Memory leak fix for the path line drawing
+        function removeActivePath() {
+            if(activePathLine) { 
+                scene.remove(activePathLine); 
+                if (activePathLine.geometry) activePathLine.geometry.dispose();
+                if (activePathLine.material) activePathLine.material.dispose();
+                activePathLine = null; 
+            }
+        }
+
         function findShortestPathBidirectional(sIdx, tIdx) {
             if (sIdx === tIdx) return [sIdx];
 
@@ -504,7 +506,7 @@
         }
 
         function drawAnimatedPath(pathNodes) {
-            if (activePathLine) { scene.remove(activePathLine); activePathLine.geometry.dispose(); activePathLine.material.dispose(); }
+            removeActivePath();
             
             const pPoints = pathNodes.map(idx => new THREE.Vector3(positions[idx*3], positions[idx*3+1], 0));
             const pGeo = new THREE.BufferGeometry().setFromPoints(pPoints);
@@ -519,7 +521,6 @@
             pGeo.setAttribute('pathUv', new THREE.BufferAttribute(uvs, 1));
 
             const pMat = new THREE.ShaderMaterial({
-                // Bright white pulsing line for maximum contrast
                 uniforms: { uTime: { value: 0.0 }, uColor: { value: new THREE.Color(0xFFFFFF) } },
                 vertexShader: `
                     attribute float pathUv; varying float vUv;
@@ -529,7 +530,7 @@
                     uniform float uTime; uniform vec3 uColor; varying float vUv;
                     void main() {
                         float flow = fract(vUv * 6.0 - uTime * 2.0); 
-                        float intensity = smoothstep(0.3, 1.0, flow) + 0.3; // Stays slightly visible throughout
+                        float intensity = smoothstep(0.3, 1.0, flow) + 0.3; 
                         gl_FragColor = vec4(uColor * intensity, 1.0); 
                     }
                 `,
@@ -553,9 +554,9 @@
             for (let i = 0; i < numNodes; i++) {
                 if (pathSet.has(i)) {
                     nodeAlpha.array[i] = 1.0; 
-                    sizeAttr.array[i] = originalSizes[i] * 3.0 + 15.0; // Less exaggerated boost
+                    sizeAttr.array[i] = originalSizes[i] * 3.0 + 15.0; 
                 } else {
-                    nodeAlpha.array[i] = 0.05; // Fade background nodes heavily
+                    nodeAlpha.array[i] = 0.0; // BUGFIX: Hide completely
                     sizeAttr.array[i] = originalSizes[i];
                 }
             }
@@ -578,7 +579,7 @@
             const edgeAlpha = linesObject.geometry.attributes.customAlpha;
             
             for (let i = 0; i < numNodes; i++) {
-                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.02; 
+                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.0; // BUGFIX: Hide completely
             }
             
             for (let i = 0; i < dataEdges.length; i++) { 
@@ -618,7 +619,7 @@
             for (let i = 0; i < numNodes; i++) {
                 if (i === idx) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = 60.0; } 
                 else if (neighbors.has(i)) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = originalSizes[i] * 2.5; } 
-                else { nodeAlpha.array[i] = 0.02; sizeAttr.array[i] = originalSizes[i]; } 
+                else { nodeAlpha.array[i] = 0.0; sizeAttr.array[i] = originalSizes[i]; } // BUGFIX: Hide completely
             }
             nodeAlpha.needsUpdate = true; sizeAttr.needsUpdate = true;
 
@@ -628,7 +629,7 @@
                 edgeAlpha.array[i*2] = edgeAlpha.array[i*2+1] = active ? 2.0 : 0.0; 
             }
             edgeAlpha.needsUpdate = true;
-            if(activePathLine) { scene.remove(activePathLine); activePathLine = null; }
+            removeActivePath();
             updateURLParams({ source: null, target: null, isolate: nodeFiles[idx].replace('.HTML','') });
         }
 
@@ -636,7 +637,7 @@
             if (isolatedNodeIdx === -1) return;
             isolatedNodeIdx = -1;
             document.getElementById('path-info').textContent = "";
-            if (activePathLine) { scene.remove(activePathLine); activePathLine = null; }
+            removeActivePath();
             
             pointsObject.geometry.attributes.customAlpha.array.fill(BASE_ALPHA); pointsObject.geometry.attributes.customAlpha.needsUpdate = true;
             linesObject.geometry.attributes.customAlpha.array.fill(1.0); linesObject.geometry.attributes.customAlpha.needsUpdate = true;
@@ -751,6 +752,8 @@
         function checkURLParamsOnLoad() {
             const params = new URLSearchParams(window.location.search);
             const sId = params.get('source'); const tId = params.get('target');
+            const isoId = params.get('isolate'); // BUGFIX: Now safely loads isolated nodes from shared links
+            
             if (sId && tId) {
                 let s = -1, t = -1;
                 for(let i=0; i<numNodes; i++) {
@@ -761,6 +764,14 @@
                     pathSourceIdx = s; pathTargetIdx = t;
                     document.getElementById('path-source').value = nodeNames[s]; document.getElementById('path-target').value = nodeNames[t];
                     document.getElementById('btn-find-path').click();
+                }
+            } else if (isoId) {
+                for(let i=0; i<numNodes; i++) {
+                    if(nodeFiles[i].replace('.HTML','') === isoId.toUpperCase()) {
+                        isolateFirstDegree(i);
+                        targetX = positions[i*3]; targetY = positions[i*3+1]; targetZ = 10000;
+                        break;
+                    }
                 }
             }
         }

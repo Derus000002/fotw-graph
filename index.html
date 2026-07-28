@@ -278,8 +278,6 @@
             window.history.pushState({}, '', url);
         }
 
-        // BUGFIX: Increased threshold to < 0.1 to prevent floating point errors from 
-        // bypassing the discard logic, which caused the "flashing" on zoom.
         const vertexShader = `
             attribute float size;
             attribute vec3 customColor;
@@ -335,6 +333,7 @@
                     vAlpha = 0.15; 
                     gl_Position = projectionMatrix * mvPosition;
                 } else {
+                    // Normal lines render extremely subtly (0.5% to 4% opacity)
                     float t = smoothstep(50000.0, 200000.0, depth);
                     vAlpha = mix(0.04, 0.005, t); 
                     gl_Position = projectionMatrix * mvPosition;
@@ -342,11 +341,13 @@
             }
         `;
 
+        // BUGFIX: We only discard the line if its opacity drops below 0.1% (0.001)
+        // This ensures the normal lines (which are 0.5% to 4%) still appear!
         const edgeFragmentShader = `
             varying vec3 vColor;
             varying float vAlpha;
             void main() { 
-                if (vAlpha < 0.1) discard; 
+                if (vAlpha < 0.001) discard; 
                 gl_FragColor = vec4(vColor, vAlpha); 
             }
         `;
@@ -448,7 +449,6 @@
             checkURLParamsOnLoad();
         });
 
-        // BUGFIX: Memory leak fix for the path line drawing
         function removeActivePath() {
             if(activePathLine) { 
                 scene.remove(activePathLine); 
@@ -556,7 +556,7 @@
                     nodeAlpha.array[i] = 1.0; 
                     sizeAttr.array[i] = originalSizes[i] * 3.0 + 15.0; 
                 } else {
-                    nodeAlpha.array[i] = 0.0; // BUGFIX: Hide completely
+                    nodeAlpha.array[i] = 0.0; 
                     sizeAttr.array[i] = originalSizes[i];
                 }
             }
@@ -579,7 +579,7 @@
             const edgeAlpha = linesObject.geometry.attributes.customAlpha;
             
             for (let i = 0; i < numNodes; i++) {
-                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.0; // BUGFIX: Hide completely
+                nodeAlpha.array[i] = (nodeCommunities[i] === cid) ? 1.0 : 0.0; 
             }
             
             for (let i = 0; i < dataEdges.length; i++) { 
@@ -619,7 +619,7 @@
             for (let i = 0; i < numNodes; i++) {
                 if (i === idx) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = 60.0; } 
                 else if (neighbors.has(i)) { nodeAlpha.array[i] = 1.0; sizeAttr.array[i] = originalSizes[i] * 2.5; } 
-                else { nodeAlpha.array[i] = 0.0; sizeAttr.array[i] = originalSizes[i]; } // BUGFIX: Hide completely
+                else { nodeAlpha.array[i] = 0.0; sizeAttr.array[i] = originalSizes[i]; } 
             }
             nodeAlpha.needsUpdate = true; sizeAttr.needsUpdate = true;
 
@@ -752,7 +752,7 @@
         function checkURLParamsOnLoad() {
             const params = new URLSearchParams(window.location.search);
             const sId = params.get('source'); const tId = params.get('target');
-            const isoId = params.get('isolate'); // BUGFIX: Now safely loads isolated nodes from shared links
+            const isoId = params.get('isolate'); 
             
             if (sId && tId) {
                 let s = -1, t = -1;
